@@ -10,6 +10,7 @@ import {
   ClipboardList,
   DatabaseZap,
   FileText,
+  Globe2,
   HeartPulse,
   LayoutDashboard,
   MessageSquareText,
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
   { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "/appointments", icon: CalendarCheck },
+  { label: "Integrations", path: "/integrations", icon: Globe2 },
   { label: "Billing", path: "/billing", icon: WalletCards },
   { label: "Safety", path: "/safety", icon: ShieldCheck },
   { label: "Account Settings", path: "/account", icon: Settings2 },
@@ -161,6 +163,7 @@ function App() {
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
+            <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/safety" element={<SafetyPage />} />
             <Route path="/account" element={<AccountSettingsPage />} />
@@ -999,6 +1002,27 @@ function AppointmentsPage() {
         </div>
       )}
     </>
+  );
+}
+
+function IntegrationsPage() {
+  const clinicId = getWorkspaceSelection().clinicId || "CLINIC_UUID";
+  const receptionistId = getWorkspaceSelection().receptionistId || "OPTIONAL_RECEPTIONIST_UUID";
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://YOUR_SUPABASE_PROJECT.supabase.co";
+  const widgetUrl = `${window.location.origin}/stormeai-widget.js`;
+  const snippet = `<script\n  async\n  src="${widgetUrl}"\n  data-api-url="${supabaseUrl}"\n  data-clinic-id="${clinicId}"\n  data-receptionist-id="${receptionistId}"\n  data-title="Clinic chat"\n  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">\n</script>`;
+
+  return (
+    <section className="content-grid two-one integrations-page">
+      <Panel title="Website chat widget" subtitle="Paste this before </body> on any website" icon={Globe2}>
+        <div className="embed-code-box"><pre>{snippet}</pre></div>
+        <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button></div>
+      </Panel>
+      <Panel title="Telegram bot" subtitle="Connect BotFather bot to StormeAI" icon={MessageSquareText}>
+        <ConfigList items={[["Function", `${supabaseUrl}/functions/v1/telegram-webhook`], ["Secret", "TELEGRAM_BOT_TOKEN"], ["Clinic", clinicId], ["Channel", "telegram"]]} />
+        <p className="empty-state">Set the Telegram token and clinic ID as Supabase secrets, then register the webhook with Telegram.</p>
+      </Panel>
+    </section>
   );
 }
 

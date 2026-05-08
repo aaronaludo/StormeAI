@@ -1352,3 +1352,16 @@ button:disabled,
 @media (max-width: 760px) {
   .billing-settings-form { grid-template-columns: 1fr; }
 }
+.embed-code-box {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 20px;
+  padding: 16px;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.embed-code-box pre {
+  margin: 0;
+  font: 800 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+}

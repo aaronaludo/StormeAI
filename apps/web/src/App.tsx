@@ -48,7 +48,6 @@ type Metric = {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Sign In", path: "/auth", icon: Users },
   { label: "Onboarding", path: "/onboarding", icon: ClipboardList },
   { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },

@@ -462,35 +462,68 @@ function ReceptionistPage() {
     }
   }
 
+  const [promptOpen, setPromptOpen] = useState(false);
+
   return (
     <>
       <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, providers, and behavior" />
-      <section className="receptionist-switcher-bar">
-        <div>
-          <strong>AI receptionist</strong>
-          <span>Switch between different receptionist personas for the selected clinic.</span>
+      <section className="receptionist-top-strip">
+        <div className="receptionist-switcher-bar compact">
+          <div>
+            <strong>AI receptionist</strong>
+            <span>Switch personas for the selected clinic.</span>
+          </div>
+          <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
+            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
+          </select>
+          <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
         </div>
-        <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-          {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
-        </select>
-        <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
+        <TinySafetyChecklist />
       </section>
-      <section className="content-grid two-one">
+
+      <section className="receptionist-workspace-grid">
         <Panel title="Receptionist configuration" subtitle="Dynamic settings saved to Supabase" icon={Bot}>
+          <button className="prompt-preview-trigger" type="button" onClick={() => setPromptOpen(true)}>
+            <ClipboardLike size={16} /> View live prompt preview
+          </button>
           <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
         </Panel>
-        <Panel title="Live prompt preview" subtitle="Updates as you edit" icon={ClipboardLike}>
-          <div className="prompt-box live-preview">{promptPreview}</div>
-          <div className="config-list compact-list">
-            <ConfigList items={[["Provider", `${settings.defaultProvider} · ${settings.defaultModel}`], ["Fallback", settings.fallbackProvider === "none" ? "Disabled" : `${settings.fallbackProvider} · ${settings.fallbackModel || "default"}`], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
-          </div>
+        <Panel title="Patient chat preview" subtitle="Uses selected receptionist settings in live chat tests" icon={MessageSquareText}>
+          <div className="sticky-chat-preview"><PatientChatWidget /></div>
         </Panel>
       </section>
-      <section className="content-grid two-col">
-        <Panel title="Patient chat preview" subtitle="Uses selected receptionist settings in live chat tests" icon={MessageSquareText}><PatientChatWidget /></Panel>
-        <Panel title="Safety checklist" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}><SafetyStack /></Panel>
-      </section>
+
+      {promptOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Live prompt preview">
+          <div className="prompt-modal">
+            <div className="prompt-modal-header">
+              <div>
+                <p className="eyebrow">Live prompt preview</p>
+                <h2>{settings.name} system behavior</h2>
+              </div>
+              <button className="ghost-button" type="button" onClick={() => setPromptOpen(false)}>Close</button>
+            </div>
+            <div className="prompt-box live-preview modal-preview">{promptPreview}</div>
+            <div className="config-list compact-list">
+              <ConfigList items={[["Provider", `${settings.defaultProvider} · ${settings.defaultModel}`], ["Fallback", settings.fallbackProvider === "none" ? "Disabled" : `${settings.fallbackProvider} · ${settings.fallbackModel || "default"}`], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+function TinySafetyChecklist() {
+  return (
+    <div className="tiny-safety" tabIndex={0}>
+      <ShieldCheck size={16} />
+      <span>Safety</span>
+      <div className="tiny-safety-popover">
+        <strong>Safety checklist</strong>
+        <SafetyStack />
+      </div>
+    </div>
   );
 }
 

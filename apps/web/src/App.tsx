@@ -216,6 +216,7 @@ function FloatingPatientChat() {
     <div className={`floating-chat-shell ${open ? "open" : ""}`}>
       {open && (
         <div className="floating-chat-panel">
+          <PatientChatWidget />
         </div>
       )}
       <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">

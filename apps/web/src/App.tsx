@@ -25,6 +25,8 @@ import {
   Zap,
 } from "lucide-react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { AuthPage } from "./pages/AuthPage";
+import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 
 type NavItem = {
   label: string;
@@ -41,6 +43,8 @@ type Metric = {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Sign In", path: "/auth", icon: Users },
+  { label: "Onboarding", path: "/onboarding", icon: ClipboardList },
   { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "/appointments", icon: CalendarCheck },
@@ -101,6 +105,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/onboarding" element={<ClinicOnboardingPage />} />
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />

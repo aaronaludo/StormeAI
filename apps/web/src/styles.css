@@ -187,3 +187,35 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .hero-card { padding: 20px; }
   .appointment-row { grid-template-columns: 1fr; align-items: flex-start; }
 }
+.auth-layout,
+.onboarding-layout {
+  min-height: calc(100vh - 60px);
+  display: grid;
+  place-items: center;
+}
+.auth-card,
+.onboarding-card {
+  width: min(760px, 100%);
+  border: 1px solid #e2e8f0;
+  background: rgba(255,255,255,.92);
+  border-radius: 32px;
+  padding: 28px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, .08);
+}
+.auth-card h1,
+.onboarding-card h1 { margin: 18px 0 8px; letter-spacing: -0.05em; }
+.auth-card p,
+.onboarding-card p { color: #64748b; line-height: 1.6; }
+.auth-card label,
+.onboarding-card label { display: grid; gap: 8px; margin: 14px 0; color: #64748b; font-weight: 800; }
+.auth-card input,
+.onboarding-card input {
+  min-height: 48px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0 14px;
+  font: inherit;
+  color: #0b1220;
+}
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }

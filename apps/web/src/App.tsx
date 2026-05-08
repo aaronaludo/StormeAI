@@ -17,6 +17,7 @@ import {
   MessageSquareText,
   Settings2,
   ShieldCheck,
+  LogOut,
   Sparkles,
   Stethoscope,
   Users,
@@ -26,10 +27,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
+import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 import { supabase } from "./lib/supabase";
 
@@ -55,6 +57,7 @@ const navItems: NavItem[] = [
   { label: "Workflows", path: "/workflows", icon: Workflow },
   { label: "Billing", path: "/billing", icon: WalletCards },
   { label: "Safety", path: "/safety", icon: ShieldCheck },
+  { label: "Account Settings", path: "/account", icon: Settings2 },
 ];
 
 const metrics: Metric[] = [
@@ -123,6 +126,7 @@ function App() {
             <Route path="/workflows" element={<WorkflowsPage />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/safety" element={<SafetyPage />} />
+            <Route path="/account" element={<AccountSettingsPage />} />
           </Route>
         </Route>
 
@@ -202,6 +206,14 @@ function RouteLoading({ label }: { label: string }) {
 }
 
 function Sidebar() {
+  const navigate = useNavigate();
+  const { session } = useAuthState();
+
+  async function logout() {
+    await supabase?.auth.signOut();
+    navigate("/auth/sign-in", { replace: true });
+  }
+
   return (
     <aside className="sidebar">
       <div className="brand-lockup">
@@ -221,13 +233,18 @@ function Sidebar() {
         ))}
       </nav>
 
-      <div className="sidebar-card">
+      <div className="sidebar-card account-card">
         <div className="status-dot" />
         <div>
-          <strong>Receptionist online</strong>
-          <span>2.1s avg response</span>
+          <strong>{session?.user.email || "Signed in"}</strong>
+          <span>Receptionist online · 2.1s avg response</span>
         </div>
       </div>
+
+      <button className="sidebar-logout" type="button" onClick={logout}>
+        <LogOut size={18} />
+        <span>Logout</span>
+      </button>
     </aside>
   );
 }

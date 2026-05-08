@@ -515,3 +515,47 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 .widget-message.patient svg { color: #0f172a; margin-top: 2px; }
 .widget-state.preview { background: #eff6ff; color: #2563eb; }
 .widget-state.unknown { background: #f1f5f9; color: #475569; }
+
+.settings-form.enhanced { gap: 16px; }
+.settings-section-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  background: #f8fafc;
+}
+.settings-mini-heading { display: flex; gap: 12px; align-items: flex-start; }
+.settings-mini-heading > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #eff6ff;
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+.settings-mini-heading strong { display: block; color: #0b1220; font-size: 15px; }
+.settings-mini-heading p { margin: 4px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; }
+.settings-form textarea {
+  min-height: 96px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: #0b1220;
+  background: #fff;
+  resize: vertical;
+}
+.full-field { grid-column: 1 / -1; }
+.prompt-box.live-preview {
+  white-space: pre-wrap;
+  max-height: 560px;
+  overflow: auto;
+  line-height: 1.55;
+}
+.compact-list { margin-top: 16px; }
+.settings-form button:disabled,
+.widget-quick-actions button:disabled,
+.widget-input-row button:disabled { opacity: .62; cursor: not-allowed; }

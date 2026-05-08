@@ -25,7 +25,7 @@ import {
   Workflow,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
@@ -34,6 +34,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 import { supabase } from "./lib/supabase";
+import { buildSettingsPromptPreview, defaultReceptionistSettings, loadReceptionistSettings, saveReceptionistSettings, type ReceptionistSettingsRecord } from "./lib/ai/receptionistSettings";
 
 type NavItem = {
   label: string;
@@ -327,22 +328,62 @@ function DashboardPage() {
 }
 
 function ReceptionistPage() {
+  const [settings, setSettings] = useState<ReceptionistSettingsRecord>(defaultReceptionistSettings);
+  const [status, setStatus] = useState("Loading AI receptionist settings…");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const promptPreview = useMemo(() => buildSettingsPromptPreview(settings), [settings]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const loaded = await loadReceptionistSettings();
+        if (!mounted) return;
+        setSettings(loaded);
+        setStatus(`Loaded settings for ${loaded.clinicName || "your clinic"}.`);
+      } catch (error) {
+        if (!mounted) return;
+        setStatus(error instanceof Error ? error.message : "Failed to load AI receptionist settings.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    void load();
+    return () => { mounted = false; };
+  }, []);
+
+  async function handleSave(nextSettings: ReceptionistSettingsRecord) {
+    setSaving(true);
+    setStatus("Saving AI receptionist settings…");
+    try {
+      const saved = await saveReceptionistSettings(nextSettings);
+      setSettings(saved);
+      setStatus(`Saved. ${saved.name} is ready for live chat tests.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to save AI receptionist settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, providers, and behavior" />
-      <section className="content-grid two-col">
-        <Panel title="Receptionist personality" subtitle="Tone, language, and chat behavior" icon={Bot}>
-          <ReceptionistSettingsForm />
+      <section className="content-grid two-one">
+        <Panel title="Receptionist configuration" subtitle="Dynamic settings saved to Supabase" icon={Bot}>
+          <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
         </Panel>
-        <Panel title="System prompt preview" subtitle="Clinic-safe operating rules" icon={ClipboardLike}>
-          <div className="prompt-box">
-            You are Mia, StormeAI chat-only receptionist for this clinic. Answer from approved clinic knowledge, collect appointment details, never diagnose, and escalate emergency or sensitive messages.
+        <Panel title="Live prompt preview" subtitle="Updates as you edit" icon={ClipboardLike}>
+          <div className="prompt-box live-preview">{promptPreview}</div>
+          <div className="config-list compact-list">
+            <ConfigList items={[["Provider", `${settings.defaultProvider} · ${settings.defaultModel}`], ["Fallback", settings.fallbackProvider === "none" ? "Disabled" : `${settings.fallbackProvider} · ${settings.fallbackModel || "default"}`], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
           </div>
         </Panel>
       </section>
       <section className="content-grid two-col">
-        <Panel title="AI providers" subtitle="Ollama default, cloud optional" icon={BrainCircuit}><ProviderStack /></Panel>
-        <Panel title="Patient chat preview" subtitle="What patients experience" icon={MessageSquareText}><ChatPreview /></Panel>
+        <Panel title="Patient chat preview" subtitle="Uses saved receptionist settings in live chat tests" icon={MessageSquareText}><PatientChatWidget /></Panel>
+        <Panel title="Safety checklist" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}><SafetyStack /></Panel>
       </section>
     </>
   );

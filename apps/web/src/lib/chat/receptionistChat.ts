@@ -101,14 +101,12 @@ async function getActiveClinic(): Promise<ClinicContext> {
 async function createChatSession(clinicId: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase
-    .from("chat_sessions")
-    .insert({ clinic_id: clinicId, channel: "web_widget", status: "open", last_message_at: new Date().toISOString() })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("create_receptionist_chat_session", {
+    target_clinic_id: clinicId,
+  });
 
   if (error) throwSupabaseError("Create chat session", error);
-  return data.id as string;
+  return data as string;
 }
 
 async function insertMessage(input: {
@@ -121,29 +119,22 @@ async function insertMessage(input: {
 }) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { error } = await supabase.from("chat_messages").insert({
-    clinic_id: input.clinicId,
-    session_id: input.sessionId,
-    sender: input.sender,
-    body: input.body,
-    citations: input.citations || [],
-    metadata: input.metadata || {},
+  const { error } = await supabase.rpc("record_receptionist_chat_message", {
+    target_clinic_id: input.clinicId,
+    target_session_id: input.sessionId,
+    message_sender: input.sender,
+    message_body: input.body,
+    message_citations: input.citations || [],
+    message_metadata: input.metadata || {},
+    emergency: false,
+    handoff: false,
   });
 
   if (error) throwSupabaseError("Save chat message", error);
 }
 
-async function updateSession(sessionId: string, flags: { emergency: boolean; handoff: boolean }) {
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  await supabase
-    .from("chat_sessions")
-    .update({
-      last_message_at: new Date().toISOString(),
-      emergency_flag: flags.emergency,
-      handoff_requested: flags.handoff,
-    })
-    .eq("id", sessionId);
+async function updateSession(_sessionId: string, _flags: { emergency: boolean; handoff: boolean }) {
+  // Session flags are updated by record_receptionist_chat_message.
 }
 
 async function retrieveKnowledge(clinicId: string, message: string): Promise<RagContext> {

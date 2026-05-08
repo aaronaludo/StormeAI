@@ -573,6 +573,7 @@ function KnowledgeBasePage() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("Loading clinic knowledge…");
   const [form, setForm] = useState({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   async function loadDocuments() {
     const clinicId = getWorkspaceSelection().clinicId;
@@ -632,6 +633,7 @@ function KnowledgeBasePage() {
     if (error) setStatus(`Add source failed: ${error.message}`);
     else {
       setForm({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+      setCreateModalOpen(false);
       setStatus("Knowledge source added and approved.");
       await loadDocuments();
     }
@@ -650,20 +652,7 @@ function KnowledgeBasePage() {
       <PageHeader eyebrow="Knowledge Base" title="Clinic-approved RAG sources" action="Add source" />
       <section className="content-grid two-one">
         <Panel title="Indexed sources" subtitle={status} icon={DatabaseZap}>
-          <form className="kb-form" onSubmit={addDocument}>
-            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Source title, e.g. Dental cleaning pricing" />
-            <select value={form.sourceType} onChange={(event) => setForm({ ...form, sourceType: event.target.value })}>
-              <option value="faq">FAQ</option>
-              <option value="service">Service</option>
-              <option value="policy">Policy</option>
-              <option value="document">Document</option>
-              <option value="website">Website</option>
-              <option value="note">Note</option>
-            </select>
-            <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved clinic answer/content here…" />
-            <input value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} placeholder="Optional source URL" />
-            <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : "Add approved source"}</button>
-          </form>
+          <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}>Add approved source</button></div>
           <div className="source-list live-list">
             {loading ? <p className="empty-state">Loading knowledge…</p> : documents.length ? documents.map((source) => (
               <div className="source-row rich-row" key={source.id}>
@@ -677,6 +666,30 @@ function KnowledgeBasePage() {
           <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active clinic knowledge"], ["Knowledge gaps", "Escalate to human handoff"]]} />
         </Panel>
       </section>
+      {createModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add knowledge source">
+          <div className="prompt-modal create-modal">
+            <div className="prompt-modal-header">
+              <div><p className="eyebrow">Knowledge Base</p><h2>Add approved source</h2></div>
+              <button className="ghost-button" type="button" onClick={() => setCreateModalOpen(false)}>Close</button>
+            </div>
+            <form className="kb-form modal-form" onSubmit={addDocument}>
+              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Source title, e.g. Dental cleaning pricing" />
+              <select value={form.sourceType} onChange={(event) => setForm({ ...form, sourceType: event.target.value })}>
+                <option value="faq">FAQ</option>
+                <option value="service">Service</option>
+                <option value="policy">Policy</option>
+                <option value="document">Document</option>
+                <option value="website">Website</option>
+                <option value="note">Note</option>
+              </select>
+              <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved clinic answer/content here…" />
+              <input value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} placeholder="Optional source URL" />
+              <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : "Add approved source"}</button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -687,6 +700,7 @@ function AppointmentsPage() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("Loading appointments…");
   const [form, setForm] = useState({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   async function loadAppointments() {
     const clinicId = getWorkspaceSelection().clinicId;
@@ -761,6 +775,7 @@ function AppointmentsPage() {
     if (error) setStatus(`Appointment create failed: ${error.message}`);
     else {
       setForm({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
+      setCreateModalOpen(false);
       setStatus("Appointment request created.");
       await loadAppointments();
     }
@@ -779,20 +794,31 @@ function AppointmentsPage() {
       <PageHeader eyebrow="Appointments" title="Booking requests and schedule control" action="New slot" />
       <section className="content-grid two-one">
         <Panel title="Appointment inbox" subtitle={status} icon={CalendarCheck}>
-          <form className="appointment-form" onSubmit={createAppointment}>
-            <input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Patient name" />
-            <input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="Phone or email" />
-            <input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Service requested" />
-            <input type="datetime-local" value={form.requestedAt} onChange={(event) => setForm({ ...form, requestedAt: event.target.value })} />
-            <textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional patient/staff note" />
-            <button className="primary-button" disabled={saving} type="submit">{saving ? "Creating…" : "Create request"}</button>
-          </form>
+          <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}>Create request</button></div>
           <AppointmentTable rows={appointments} loading={loading} onStatusChange={updateAppointmentStatus} />
         </Panel>
         <Panel title="Scheduling rules" subtitle="How the AI collects bookings" icon={ClipboardList}>
           <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Manual now · n8n-ready"]]} />
         </Panel>
       </section>
+      {createModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create appointment request">
+          <div className="prompt-modal create-modal">
+            <div className="prompt-modal-header">
+              <div><p className="eyebrow">Appointments</p><h2>Create request</h2></div>
+              <button className="ghost-button" type="button" onClick={() => setCreateModalOpen(false)}>Close</button>
+            </div>
+            <form className="appointment-form modal-form" onSubmit={createAppointment}>
+              <input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Patient name" />
+              <input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="Phone or email" />
+              <input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Service requested" />
+              <input type="datetime-local" value={form.requestedAt} onChange={(event) => setForm({ ...form, requestedAt: event.target.value })} />
+              <textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional patient/staff note" />
+              <button className="primary-button" disabled={saving} type="submit">{saving ? "Creating…" : "Create request"}</button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1151,3 +1151,21 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .floating-chat-panel .patient-widget-shell { max-height: calc(100vh - 96px); }
   .floating-chat-panel .patient-widget-messages { max-height: calc(100vh - 390px); }
 }
+
+.panel-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+.create-modal { width: min(760px, 100%); }
+.modal-form {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.modal-form textarea { min-height: 180px; }
+@media (max-width: 720px) {
+  .panel-action-row { justify-content: stretch; }
+  .panel-action-row .primary-button { width: 100%; }
+}

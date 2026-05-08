@@ -119,6 +119,23 @@ type AppointmentInboxRow = {
   note: string;
 };
 
+type ChatSessionRow = {
+  id: string;
+  status: string;
+  channel: string;
+  lastMessageAt?: string;
+  createdAt: string;
+  handoffRequested: boolean;
+  emergencyFlag: boolean;
+};
+
+type ChatMessageRow = {
+  id: string;
+  sender: string;
+  body: string;
+  createdAt: string;
+};
+
 const providerCards = [
   { name: "Ollama", model: "qwen2.5:7b", tag: "Default local", active: true },
   { name: "OpenAI", model: "Optional cloud fallback", tag: "Disabled", active: false },
@@ -141,6 +158,7 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/chats" element={<ChatsPage />} />
             <Route path="/onboarding" element={<ClinicOnboardingPage />} />
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
@@ -565,6 +583,124 @@ function TinySafetyChecklist() {
       </div>
     </div>
   );
+}
+
+
+function ChatsPage() {
+  const [sessions, setSessions] = useState<ChatSessionRow[]>([]);
+  const [messages, setMessages] = useState<ChatMessageRow[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("Loading chat history…");
+
+  async function loadSessions(preferredSessionId?: string) {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) {
+      setSessions([]);
+      setMessages([]);
+      setSelectedSessionId("");
+      setLoading(false);
+      setStatus("Choose or create a clinic first.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("chat_sessions")
+      .select("id,status,channel,last_message_at,created_at,handoff_requested,emergency_flag")
+      .eq("clinic_id", clinicId)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      setStatus(`Failed to load chats: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const rows = (data || []).map((row) => ({
+      id: row.id,
+      status: row.status,
+      channel: row.channel,
+      lastMessageAt: row.last_message_at,
+      createdAt: row.created_at,
+      handoffRequested: row.handoff_requested,
+      emergencyFlag: row.emergency_flag,
+    }));
+    setSessions(rows);
+    const nextSelected = preferredSessionId || selectedSessionId || rows[0]?.id || "";
+    setSelectedSessionId(nextSelected);
+    setStatus(`${rows.length} chat session${rows.length === 1 ? "" : "s"} found.`);
+    setLoading(false);
+    if (nextSelected) await loadMessages(nextSelected);
+    else setMessages([]);
+  }
+
+  async function loadMessages(sessionId: string) {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return;
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("id,sender,body,created_at")
+      .eq("clinic_id", clinicId)
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setStatus(`Failed to load messages: ${error.message}`);
+      return;
+    }
+
+    setMessages((data || []).map((row) => ({ id: row.id, sender: row.sender, body: row.body, createdAt: row.created_at })));
+  }
+
+  useEffect(() => {
+    void loadSessions();
+    return subscribeWorkspaceSelection(() => void loadSessions());
+  }, []);
+
+  function selectSession(sessionId: string) {
+    setSelectedSessionId(sessionId);
+    void loadMessages(sessionId);
+  }
+
+  const selectedSession = sessions.find((session) => session.id === selectedSessionId);
+
+  return (
+    <section className="content-grid chat-history-grid">
+      <Panel title="Chat sessions" subtitle={status} icon={MessageSquareText}>
+        <div className="chat-session-list">
+          {loading ? <p className="empty-state">Loading chats…</p> : sessions.length ? sessions.map((session) => (
+            <button className={`chat-session-card ${session.id === selectedSessionId ? "active" : ""}`} type="button" key={session.id} onClick={() => selectSession(session.id)}>
+              <div><strong>{formatChatSessionTitle(session)}</strong><span>{session.channel} · {formatAppointmentTime(session.lastMessageAt || session.createdAt)}</span></div>
+              <div className="chat-session-badges">
+                {session.emergencyFlag && <span className="badge red">Urgent</span>}
+                {session.handoffRequested && <span className="badge amber">Handoff</span>}
+                <span className="badge blue">{session.status}</span>
+              </div>
+            </button>
+          )) : <p className="empty-state">No chat history yet. Open Test Chat and send a message to create the first session.</p>}
+        </div>
+      </Panel>
+      <Panel title="Conversation transcript" subtitle={selectedSession ? `Session ${selectedSession.id.slice(0, 8)}` : "Select a chat session"} icon={Bot}>
+        <div className="chat-transcript">
+          {messages.length ? messages.map((message) => (
+            <div className={`transcript-message ${message.sender}`} key={message.id}>
+              <span>{message.sender} · {formatAppointmentTime(message.createdAt)}</span>
+              <p>{message.body}</p>
+            </div>
+          )) : <p className="empty-state">No messages selected.</p>}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+function formatChatSessionTitle(session: ChatSessionRow) {
+  if (session.emergencyFlag) return "Urgent patient chat";
+  if (session.handoffRequested) return "Handoff requested";
+  return `Patient chat ${session.id.slice(0, 8)}`;
 }
 
 function KnowledgeBasePage() {

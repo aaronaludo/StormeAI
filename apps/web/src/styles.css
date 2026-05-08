@@ -1049,3 +1049,105 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .day-chip-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .time-range-grid { grid-template-columns: 1fr; }
 }
+
+/* Regular laptop/screen compatibility pass */
+.main-panel {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+@media (max-width: 1440px) {
+  .app-shell { grid-template-columns: 260px minmax(0, 1fr); }
+  .sidebar { padding: 22px 16px; gap: 18px; }
+  .brand-mark { width: 42px; height: 42px; border-radius: 14px; }
+  .brand-name { font-size: 20px; }
+  .nav-item { min-height: 40px; padding: 0 11px; gap: 10px; font-size: 13px; }
+  .main-panel { padding: 22px; }
+  .hero-grid,
+  .content-grid { margin-top: 18px; gap: 18px; }
+  .hero-card { padding: 22px; border-radius: 28px; }
+  .hero-content h2 { font-size: clamp(32px, 4vw, 50px); line-height: 1; margin: 16px 0 12px; }
+  .hero-content p { font-size: 16px; line-height: 1.55; margin-bottom: 18px; }
+  .health-card,
+  .panel-card,
+  .metric-card { border-radius: 24px; }
+  .health-card { padding: 18px; }
+  .metrics-grid { gap: 14px; }
+  .metric-card { padding: 16px; }
+  .metric-icon { margin-bottom: 14px; }
+  .metric-card strong { font-size: 28px; }
+  .panel-card { padding: 16px; }
+  .panel-heading { margin-bottom: 14px; }
+  .section-heading h3,
+  .panel-heading h3 { font-size: 19px; }
+  .receptionist-top-strip,
+  .receptionist-workspace-grid { margin-top: 18px; gap: 16px; }
+}
+@media (max-width: 1280px) {
+  .app-shell { grid-template-columns: 240px minmax(0, 1fr); }
+  .sidebar { padding: 18px 14px; gap: 14px; }
+  .brand-subtitle { font-size: 10px; }
+  .clinic-switcher { margin: 10px 0 12px; padding: 11px; border-radius: 18px; }
+  .clinic-switcher select { min-height: 44px; font-size: 13px; }
+  .sidebar-card { padding: 12px; border-radius: 18px; }
+  .sidebar-card span { font-size: 11px; }
+  .main-panel { padding: 18px; }
+  .hero-grid,
+  .two-one { grid-template-columns: 1fr; }
+  .hero-card { grid-template-columns: 1fr; }
+  .three-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { gap: 16px; }
+  .settings-section-card { padding: 16px; }
+  .floating-chat-shell { right: 18px; bottom: 18px; }
+}
+@media (max-width: 1024px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    padding: 16px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  }
+  .brand-lockup { justify-content: center; }
+  .nav-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .nav-item { justify-content: center; }
+  .sidebar-card { margin-top: 0; }
+  .main-panel { padding: 16px; }
+  .two-col,
+  .three-col,
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .two-col,
+  .three-col,
+  .metrics-grid,
+  .form-grid,
+  .settings-toggle-grid,
+  .kb-form,
+  .appointment-form { grid-template-columns: 1fr; }
+  .hero-content h2 { font-size: clamp(30px, 10vw, 44px); }
+  .floating-chat-panel { width: min(390px, calc(100vw - 24px)); }
+}
+@media (max-width: 560px) {
+  .sidebar { padding: 14px 12px; }
+  .brand-lockup { justify-content: flex-start; }
+  .nav-list { grid-template-columns: 1fr; }
+  .main-panel { padding: 12px; }
+  .hero-card,
+  .panel-card,
+  .health-card,
+  .metric-card { border-radius: 20px; }
+  .hero-card,
+  .panel-card { padding: 14px; }
+  .conversation-row,
+  .source-row,
+  .appointment-row,
+  .provider-card,
+  .config-row,
+  .safety-rule { padding: 12px; }
+  .floating-chat-shell { right: 12px; bottom: 12px; }
+  .floating-chat-panel .patient-widget-shell { max-height: calc(100vh - 96px); }
+  .floating-chat-panel .patient-widget-messages { max-height: calc(100vh - 390px); }
+}

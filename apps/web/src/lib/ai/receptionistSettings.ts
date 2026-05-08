@@ -2,6 +2,8 @@ import { supabase } from "../supabase";
 
 export type AiProvider = "ollama" | "openai" | "anthropic";
 
+export type ReceptionistOption = { receptionistId: string; clinicId: string; name: string; tone: string; defaultProvider: AiProvider; defaultModel: string; updatedAt?: string };
+
 export type ReceptionistSettingsRecord = {
   clinicId?: string;
   receptionistId?: string;
@@ -64,10 +66,13 @@ type ReceptionistRpcRow = {
   settings?: Record<string, unknown> | null;
 };
 
-export async function loadReceptionistSettings(): Promise<ReceptionistSettingsRecord> {
+export async function loadReceptionistSettings(clinicId?: string, receptionistId?: string): Promise<ReceptionistSettingsRecord> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase.rpc("get_ai_receptionist_settings").single();
+  const { data, error } = await supabase.rpc("get_ai_receptionist_settings_v2", {
+    target_clinic_id: clinicId || null,
+    target_receptionist_id: receptionistId || null,
+  }).single();
   if (error) throwSupabaseError("Load AI receptionist settings", error);
   if (!data) throw new Error("No AI receptionist found. Please finish clinic onboarding first.");
 
@@ -77,7 +82,11 @@ export async function loadReceptionistSettings(): Promise<ReceptionistSettingsRe
 export async function saveReceptionistSettings(settings: ReceptionistSettingsRecord): Promise<ReceptionistSettingsRecord> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase.rpc("update_ai_receptionist_settings", {
+  if (!settings.clinicId || !settings.receptionistId) throw new Error("Choose a clinic and receptionist before saving settings.");
+
+  const { data, error } = await supabase.rpc("update_ai_receptionist_settings_v2", {
+    target_clinic_id: settings.clinicId,
+    target_receptionist_id: settings.receptionistId,
     receptionist_name: settings.name,
     receptionist_tone: settings.tone,
     receptionist_language_style: settings.languageStyle,
@@ -103,6 +112,34 @@ export async function saveReceptionistSettings(settings: ReceptionistSettingsRec
   if (!data) throw new Error("AI receptionist settings were saved but not returned.");
 
   return mapRpcRow(data as ReceptionistRpcRow);
+}
+
+export async function listReceptionists(clinicId: string): Promise<ReceptionistOption[]> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data, error } = await supabase.rpc("list_ai_receptionists", { target_clinic_id: clinicId });
+  if (error) throwSupabaseError("Load AI receptionists", error);
+
+  return ((data || []) as { receptionist_id: string; clinic_id: string; name: string; tone: string; default_provider: AiProvider; default_model: string; updated_at?: string }[]).map((row) => ({
+    receptionistId: row.receptionist_id,
+    clinicId: row.clinic_id,
+    name: row.name,
+    tone: row.tone,
+    defaultProvider: row.default_provider,
+    defaultModel: row.default_model,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function createReceptionist(clinicId: string, name = "Mia") {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data, error } = await supabase.rpc("create_ai_receptionist", {
+    target_clinic_id: clinicId,
+    receptionist_name: name,
+  });
+  if (error) throwSupabaseError("Create AI receptionist", error);
+  return data as string;
 }
 
 export function buildSettingsPromptPreview(settings: ReceptionistSettingsRecord) {

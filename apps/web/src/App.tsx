@@ -34,7 +34,9 @@ import { AuthPage } from "./pages/AuthPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 import { supabase } from "./lib/supabase";
-import { buildSettingsPromptPreview, defaultReceptionistSettings, loadReceptionistSettings, saveReceptionistSettings, type ReceptionistSettingsRecord } from "./lib/ai/receptionistSettings";
+import { buildSettingsPromptPreview, createReceptionist, defaultReceptionistSettings, listReceptionists, loadReceptionistSettings, saveReceptionistSettings, type ReceptionistOption, type ReceptionistSettingsRecord } from "./lib/ai/receptionistSettings";
+import { listClinicWorkspaces, type ClinicWorkspaceOption } from "./lib/clinicWorkspaces";
+import { getWorkspaceSelection, setSelectedClinic, setSelectedReceptionist, subscribeWorkspaceSelection } from "./lib/workspaceSelection";
 
 type NavItem = {
   label: string;
@@ -234,6 +236,8 @@ function Sidebar() {
         ))}
       </nav>
 
+      <ClinicSwitcher />
+
       <div className="sidebar-card account-card">
         <div className="status-dot" />
         <div>
@@ -247,6 +251,46 @@ function Sidebar() {
         <span>Logout</span>
       </button>
     </aside>
+  );
+}
+
+function ClinicSwitcher() {
+  const [clinics, setClinics] = useState<ClinicWorkspaceOption[]>([]);
+  const [selected, setSelected] = useState(getWorkspaceSelection().clinicId || "");
+  const [status, setStatus] = useState("Loading clinics…");
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const items = await listClinicWorkspaces();
+        if (!mounted) return;
+        setClinics(items);
+        const current = getWorkspaceSelection().clinicId || items[0]?.clinicId || "";
+        if (current && !getWorkspaceSelection().clinicId) setSelectedClinic(current);
+        setSelected(current);
+        setStatus(items.length ? "Active clinic" : "No clinic yet");
+      } catch (error) {
+        if (mounted) setStatus(error instanceof Error ? error.message : "Failed to load clinics");
+      }
+    }
+    void load();
+    return () => { mounted = false; };
+  }, []);
+
+  function switchClinic(clinicId: string) {
+    setSelected(clinicId);
+    setSelectedClinic(clinicId);
+    window.location.reload();
+  }
+
+  return (
+    <div className="clinic-switcher">
+      <label>{status}</label>
+      <select value={selected} onChange={(event) => switchClinic(event.target.value)}>
+        {clinics.map((clinic) => <option key={clinic.clinicId} value={clinic.clinicId}>{clinic.clinicName} · {clinic.role}</option>)}
+      </select>
+    </div>
   );
 }
 
@@ -332,33 +376,85 @@ function ReceptionistPage() {
   const [status, setStatus] = useState("Loading AI receptionist settings…");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState(getWorkspaceSelection().clinicId || "");
+  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
   const promptPreview = useMemo(() => buildSettingsPromptPreview(settings), [settings]);
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        const loaded = await loadReceptionistSettings();
-        if (!mounted) return;
-        setSettings(loaded);
-        setStatus(`Loaded settings for ${loaded.clinicName || "your clinic"}.`);
-      } catch (error) {
-        if (!mounted) return;
-        setStatus(error instanceof Error ? error.message : "Failed to load AI receptionist settings.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  async function refreshReceptionists(clinicId: string, preferredReceptionistId?: string) {
+    const items = await listReceptionists(clinicId);
+    setReceptionists(items);
+    const nextReceptionistId = preferredReceptionistId || getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
+    if (nextReceptionistId) {
+      setSelectedReceptionistId(nextReceptionistId);
+      setSelectedReceptionist(nextReceptionistId);
     }
-    void load();
-    return () => { mounted = false; };
+    return nextReceptionistId;
+  }
+
+  async function loadForSelection() {
+    setLoading(true);
+    const selection = getWorkspaceSelection();
+    try {
+      const loaded = await loadReceptionistSettings(selection.clinicId, selection.receptionistId);
+      setSettings(loaded);
+      setSelectedClinicId(loaded.clinicId || "");
+      setSelectedReceptionistId(loaded.receptionistId || "");
+      if (loaded.clinicId) setSelectedClinic(loaded.clinicId);
+      if (loaded.receptionistId) setSelectedReceptionist(loaded.receptionistId);
+      if (loaded.clinicId) await refreshReceptionists(loaded.clinicId, loaded.receptionistId);
+      setStatus(`Loaded ${loaded.name} for ${loaded.clinicName || "your clinic"}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to load AI receptionist settings.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadForSelection();
+    return subscribeWorkspaceSelection(() => void loadForSelection());
   }, []);
+
+  async function switchReceptionist(receptionistId: string) {
+    setSelectedReceptionistId(receptionistId);
+    setSelectedReceptionist(receptionistId);
+    setLoading(true);
+    try {
+      const loaded = await loadReceptionistSettings(selectedClinicId || undefined, receptionistId);
+      setSettings(loaded);
+      setStatus(`Switched to ${loaded.name}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to switch receptionist.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addReceptionist() {
+    if (!selectedClinicId) return setStatus("Choose a clinic before adding a receptionist.");
+    const name = window.prompt("Name for the new AI receptionist", "Mia") || "Mia";
+    setSaving(true);
+    try {
+      const newId = await createReceptionist(selectedClinicId, name);
+      await refreshReceptionists(selectedClinicId, newId);
+      const loaded = await loadReceptionistSettings(selectedClinicId, newId);
+      setSettings(loaded);
+      setStatus(`Created and switched to ${loaded.name}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to create receptionist.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSave(nextSettings: ReceptionistSettingsRecord) {
     setSaving(true);
     setStatus("Saving AI receptionist settings…");
     try {
-      const saved = await saveReceptionistSettings(nextSettings);
+      const saved = await saveReceptionistSettings({ ...nextSettings, clinicId: selectedClinicId || nextSettings.clinicId, receptionistId: selectedReceptionistId || nextSettings.receptionistId });
       setSettings(saved);
+      if (saved.clinicId) await refreshReceptionists(saved.clinicId, saved.receptionistId);
       setStatus(`Saved. ${saved.name} is ready for live chat tests.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to save AI receptionist settings.");
@@ -370,6 +466,16 @@ function ReceptionistPage() {
   return (
     <>
       <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, providers, and behavior" />
+      <section className="receptionist-switcher-bar">
+        <div>
+          <strong>AI receptionist</strong>
+          <span>Switch between different receptionist personas for the selected clinic.</span>
+        </div>
+        <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
+          {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
+        </select>
+        <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
+      </section>
       <section className="content-grid two-one">
         <Panel title="Receptionist configuration" subtitle="Dynamic settings saved to Supabase" icon={Bot}>
           <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
@@ -382,7 +488,7 @@ function ReceptionistPage() {
         </Panel>
       </section>
       <section className="content-grid two-col">
-        <Panel title="Patient chat preview" subtitle="Uses saved receptionist settings in live chat tests" icon={MessageSquareText}><PatientChatWidget /></Panel>
+        <Panel title="Patient chat preview" subtitle="Uses selected receptionist settings in live chat tests" icon={MessageSquareText}><PatientChatWidget /></Panel>
         <Panel title="Safety checklist" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}><SafetyStack /></Panel>
       </section>
     </>

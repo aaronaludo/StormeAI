@@ -1,6 +1,7 @@
 import { createChatCompletion } from "../ai/providers";
 import { buildReceptionistSystemPrompt, type RagContext } from "../ai/receptionistPrompt";
 import { supabase } from "../supabase";
+import { getWorkspaceSelection } from "../workspaceSelection";
 
 export type ReceptionistChatTurnInput = {
   sessionId?: string;
@@ -22,6 +23,8 @@ type ClinicContext = {
   receptionist_name?: string | null;
   receptionist_tone?: string | null;
   receptionist_language_style?: string | null;
+  default_provider?: "ollama" | "openai" | "anthropic" | null;
+  default_model?: string | null;
 };
 
 export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput): Promise<ReceptionistChatTurnResult> {
@@ -50,6 +53,8 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
 
   try {
     const completion = await createChatCompletion({
+      provider: clinic.default_provider || undefined,
+      model: clinic.default_model || undefined,
       temperature: 0.2,
       messages: [
         { role: "system", content: prompt },
@@ -88,14 +93,36 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
 async function getActiveClinic(): Promise<ClinicContext> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
+  const selection = getWorkspaceSelection();
   const { data, error } = await supabase
-    .rpc("get_active_clinic_workspace")
+    .rpc("get_ai_receptionist_settings_v2", {
+      target_clinic_id: selection.clinicId || null,
+      target_receptionist_id: selection.receptionistId || null,
+    })
     .single();
 
-  if (error) throwSupabaseError("Find active clinic workspace", error);
+  if (error) throwSupabaseError("Find active clinic and receptionist", error);
   if (!data) throw new Error("No clinic workspace found for this account. Please finish onboarding first.");
 
-  return data as ClinicContext;
+  const row = data as {
+    clinic_id: string;
+    clinic_name: string;
+    name?: string | null;
+    tone?: string | null;
+    language_style?: string | null;
+    default_provider?: "ollama" | "openai" | "anthropic" | null;
+    default_model?: string | null;
+  };
+
+  return {
+    id: row.clinic_id,
+    name: row.clinic_name,
+    receptionist_name: row.name,
+    receptionist_tone: row.tone,
+    receptionist_language_style: row.language_style,
+    default_provider: row.default_provider,
+    default_model: row.default_model,
+  };
 }
 
 async function createChatSession(clinicId: string) {

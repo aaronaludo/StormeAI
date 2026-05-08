@@ -559,3 +559,40 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 .settings-form button:disabled,
 .widget-quick-actions button:disabled,
 .widget-input-row button:disabled { opacity: .62; cursor: not-allowed; }
+
+.clinic-switcher {
+  margin: 12px 0 14px;
+  display: grid;
+  gap: 7px;
+}
+.clinic-switcher label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+.clinic-switcher select,
+.receptionist-switcher-bar select {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 850;
+  color: #0b1220;
+  background: #fff;
+}
+.receptionist-switcher-bar {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 420px) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+.receptionist-switcher-bar strong { display: block; font-size: 16px; }
+.receptionist-switcher-bar span { display: block; margin-top: 3px; color: #64748b; font-size: 13px; }
+@media (max-width: 900px) { .receptionist-switcher-bar { grid-template-columns: 1fr; } }

@@ -146,6 +146,7 @@ function AppLayout() {
       <main className="main-panel">
         <Outlet />
       </main>
+      <FloatingPatientChat />
     </div>
   );
 }
@@ -204,6 +205,23 @@ function RouteLoading({ label }: { label: string }) {
     <div className="route-loading">
       <div className="brand-mark"><Sparkles size={22} /></div>
       <p>{label}</p>
+    </div>
+  );
+}
+
+function FloatingPatientChat() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={`floating-chat-shell ${open ? "open" : ""}`}>
+      {open && (
+        <div className="floating-chat-panel">
+        </div>
+      )}
+      <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">
+        <MessageSquareText size={22} />
+        <span>{open ? "Close chat" : "Test chat"}</span>
+      </button>
     </div>
   );
 }
@@ -350,7 +368,6 @@ function DashboardPage() {
               <button className="ghost-button">View patient widget</button>
             </div>
           </div>
-          <PatientChatWidget />
         </div>
         <HealthCard />
       </section>
@@ -481,15 +498,12 @@ function ReceptionistPage() {
         <TinySafetyChecklist />
       </section>
 
-      <section className="receptionist-workspace-grid">
+      <section className="receptionist-workspace-grid single-column">
         <Panel title="Receptionist configuration" subtitle="Dynamic settings saved to Supabase" icon={Bot}>
           <button className="prompt-preview-trigger" type="button" onClick={() => setPromptOpen(true)}>
             <ClipboardLike size={16} /> View live prompt preview
           </button>
           <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
-        </Panel>
-        <Panel title="Patient chat preview" subtitle="Uses selected receptionist settings in live chat tests" icon={MessageSquareText}>
-          <div className="sticky-chat-preview"><PatientChatWidget /></div>
         </Panel>
       </section>
 

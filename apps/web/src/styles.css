@@ -711,3 +711,63 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .tiny-safety-popover { left: 0; right: auto; width: min(330px, calc(100vw - 48px)); }
   .prompt-modal-header { flex-direction: column; }
 }
+
+.receptionist-workspace-grid.single-column { grid-template-columns: minmax(0, 1fr); }
+.floating-chat-shell {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+.floating-chat-shell > * { pointer-events: auto; }
+.floating-chat-panel {
+  width: min(420px, calc(100vw - 32px));
+  animation: floatChatIn .22s ease-out;
+  transform-origin: bottom right;
+}
+.floating-chat-panel .patient-widget-shell {
+  width: 100%;
+  max-height: min(680px, calc(100vh - 130px));
+  animation: chatFloat 4.2s ease-in-out infinite;
+}
+.floating-chat-panel .patient-widget-messages {
+  max-height: min(360px, calc(100vh - 410px));
+  overflow: auto;
+}
+.floating-chat-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  font-weight: 950;
+  box-shadow: 0 20px 55px rgba(37,99,235,.32);
+  cursor: pointer;
+  animation: floatingButton 3.8s ease-in-out infinite;
+}
+.floating-chat-button:hover { transform: translateY(-2px); box-shadow: 0 24px 70px rgba(37,99,235,.42); }
+@keyframes chatFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes floatingButton {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes floatChatIn {
+  from { opacity: 0; transform: translateY(12px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 720px) {
+  .floating-chat-shell { right: 16px; bottom: 16px; }
+  .floating-chat-button span { display: none; }
+  .floating-chat-button { width: 58px; height: 58px; justify-content: center; padding: 0; }
+}

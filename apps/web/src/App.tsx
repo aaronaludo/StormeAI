@@ -211,12 +211,46 @@ function RouteLoading({ label }: { label: string }) {
 
 function FloatingPatientChat() {
   const [open, setOpen] = useState(false);
+  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
+  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadReceptionists() {
+      const clinicId = getWorkspaceSelection().clinicId;
+      if (!clinicId) return;
+      try {
+        const items = await listReceptionists(clinicId);
+        if (!mounted) return;
+        setReceptionists(items);
+        const current = getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
+        setSelectedReceptionistId(current);
+        if (current) persistWorkspaceSelection({ clinicId, receptionistId: current });
+      } catch {
+        if (mounted) setReceptionists([]);
+      }
+    }
+    void loadReceptionists();
+    return subscribeWorkspaceSelection(() => void loadReceptionists());
+  }, []);
+
+  function switchReceptionist(receptionistId: string) {
+    const clinicId = getWorkspaceSelection().clinicId;
+    setSelectedReceptionistId(receptionistId);
+    persistWorkspaceSelection({ clinicId, receptionistId });
+  }
 
   return (
     <div className={`floating-chat-shell ${open ? "open" : ""}`}>
       {open && (
         <div className="floating-chat-panel">
-          <PatientChatWidget />
+          <div className="floating-chat-selector">
+            <label>AI receptionist</label>
+            <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
+              {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
+            </select>
+          </div>
+          <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} />
         </div>
       )}
       <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">
@@ -246,6 +280,8 @@ function Sidebar() {
         </div>
       </div>
 
+      <ClinicSwitcher />
+
       <nav className="nav-list">
         {navItems.map((item) => (
           <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={item.path} key={item.label}>
@@ -254,8 +290,6 @@ function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      <ClinicSwitcher />
 
       <div className="sidebar-card account-card">
         <div className="status-dot" />
@@ -303,12 +337,18 @@ function ClinicSwitcher() {
     window.location.reload();
   }
 
+  const activeClinic = clinics.find((clinic) => clinic.clinicId === selected);
+
   return (
     <div className="clinic-switcher">
-      <label>{status}</label>
-      <select value={selected} onChange={(event) => switchClinic(event.target.value)}>
+      <div className="clinic-switcher-header">
+        <span>Active clinic</span>
+        {activeClinic && <strong>{activeClinic.role}</strong>}
+      </div>
+      <select aria-label="Switch active clinic" value={selected} onChange={(event) => switchClinic(event.target.value)}>
         {clinics.map((clinic) => <option key={clinic.clinicId} value={clinic.clinicId}>{clinic.clinicName} · {clinic.role}</option>)}
       </select>
+      <p>{status}</p>
     </div>
   );
 }

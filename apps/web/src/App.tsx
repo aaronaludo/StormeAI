@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 
 type NavItem = {
   label: string;
@@ -176,7 +177,7 @@ function DashboardPage() {
               <button className="ghost-button">View patient widget</button>
             </div>
           </div>
-          <ChatPreview />
+          <PatientChatWidget />
         </div>
         <HealthCard />
       </section>

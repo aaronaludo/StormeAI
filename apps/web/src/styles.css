@@ -187,3 +187,12 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .hero-card { padding: 20px; }
   .appointment-row { grid-template-columns: 1fr; align-items: flex-start; }
 }
+.settings-form { display: grid; gap: 18px; }
+.settings-status { color: #64748b; margin: 0; }
+.settings-form label { display: grid; gap: 8px; color: #64748b; font-weight: 800; }
+.settings-form input,
+.settings-form select { min-height: 48px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 0 14px; font: inherit; color: #0b1220; background: #fff; }
+.settings-toggle-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.settings-toggle { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 10px; background: #f8fafc; }
+.settings-toggle input { min-height: auto; width: 18px; height: 18px; }
+@media (max-width: 720px) { .settings-toggle-grid { grid-template-columns: 1fr; } }

@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, CalendarCheck, Info, Send, ShieldAlert, UserRound } from "lucide-react";
 import { sendReceptionistChatTurn } from "../../lib/chat/receptionistChat";
 
-type WidgetState = "live" | "thinking" | "ai" | "safe-fallback" | "error";
+type WidgetState = "live" | "thinking" | "ai" | "safe-fallback" | "rule" | "error";
 
 type Message = {
   id: string;

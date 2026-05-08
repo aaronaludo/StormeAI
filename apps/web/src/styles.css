@@ -497,3 +497,21 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 .settings-section-title h2 { margin: 0; font-size: 22px; letter-spacing: -.04em; }
 .settings-section-title p { margin: 5px 0 0; color: #64748b; line-height: 1.5; }
 @media (max-width: 960px) { .account-settings-grid { grid-template-columns: 1fr; } }
+
+.widget-demo-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 850;
+}
+.widget-demo-note svg,
+.widget-message svg { flex: 0 0 auto; }
+.widget-message.assistant svg { color: #2563eb; margin-top: 2px; }
+.widget-message.patient svg { color: #0f172a; margin-top: 2px; }
+.widget-state.preview { background: #eff6ff; color: #2563eb; }
+.widget-state.unknown { background: #f1f5f9; color: #475569; }

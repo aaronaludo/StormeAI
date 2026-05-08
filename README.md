@@ -2,17 +2,17 @@
 
 StormeAI is a **chat-only AI receptionist SaaS for clinics**.
 
-It helps clinics answer patient questions, collect appointment details, schedule appointments, trigger workflows, and route complex cases to staff through chat — without acting as a doctor or diagnosis tool.
+It helps clinics answer patient questions, collect appointment details, schedule appointments, and route complex cases to staff through chat — without acting as a doctor or diagnosis tool.
 
 ## Stack
 
-- Frontend: React + TypeScript + Tailwind + shadcn/ui + React Flow
+- Frontend: React + TypeScript + Vite
 - Database/Auth/Backend: Supabase Postgres, Auth, Edge Functions
 - Vector DB/RAG: Supabase pgvector
 - AI: Ollama `qwen2.5:7b` by default, optional OpenAI/Claude
-- Workflow: n8n webhooks
+- Automation: built-in chat, appointment, and handoff flows
 - Email: Resend
-- Billing: Paddle
+- Billing: fixed manual billing at ₱10,000/month with unlimited chats
 - Project/task ops: Trello + GitHub
 
 ## Development Setup

@@ -5,9 +5,7 @@
 - Node.js 20+
 - npm 10+
 - Supabase project
-- n8n instance or local n8n
 - Ollama running locally with `qwen2.5:7b`
-- Paddle sandbox account
 - Resend API key
 - Trello API key/token
 - GitHub token or `gh auth login`

@@ -10,10 +10,8 @@ import {
   ClipboardList,
   DatabaseZap,
   FileText,
-  GitBranch,
   HeartPulse,
   LayoutDashboard,
-  Mail,
   MessageSquareText,
   Settings2,
   ShieldCheck,
@@ -22,12 +20,10 @@ import {
   Stethoscope,
   Users,
   WalletCards,
-  Workflow,
-  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
@@ -58,9 +54,7 @@ const navItems: NavItem[] = [
   { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "/appointments", icon: CalendarCheck },
-  { label: "Workflows", path: "/workflows", icon: Workflow },
   { label: "Billing", path: "/billing", icon: WalletCards },
-  { label: "Analytics", path: "/analytics", icon: Activity },
   { label: "Safety", path: "/safety", icon: ShieldCheck },
   { label: "Account Settings", path: "/account", icon: Settings2 },
 ];
@@ -83,7 +77,6 @@ const setupItems = [
   "Receptionist personality configured",
   "No-diagnosis safety rules enabled",
   "Ollama qwen2.5:7b default route active",
-  "n8n appointment workflow connected",
   "Knowledge base needs 3 more FAQs",
 ];
 
@@ -138,30 +131,7 @@ type ChatMessageRow = {
   createdAt: string;
 };
 
-type WorkflowRow = {
-  id: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-  webhookUrl: string;
-  nodes: string[];
-};
 
-type BillingRecord = {
-  id?: string;
-  provider: "manual" | "paddle";
-  status: string;
-  plan: string;
-  monthlyChats: number;
-  knowledgeDocuments: number;
-  staffUsers: number;
-  manualReference: string;
-  manualNotes: string;
-  paddleCustomerId: string;
-  paddleSubscriptionId: string;
-  paddleProductId: string;
-  paddlePriceId: string;
-};
 
 const providerCards = [
   { name: "Ollama", model: "qwen2.5:7b", tag: "Default local", active: true },
@@ -183,16 +153,15 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/" element={<DashboardRedirect />} />
+            <Route path="/dashboard" element={<DashboardRedirect />} />
+            <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
             <Route path="/chats" element={<ChatsPage />} />
             <Route path="/clinics" element={<ClinicOnboardingPage />} />
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
-            <Route path="/workflows" element={<WorkflowsPage />} />
             <Route path="/billing" element={<BillingPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/safety" element={<SafetyPage />} />
             <Route path="/account" element={<AccountSettingsPage />} />
           </Route>
@@ -333,6 +302,11 @@ function FloatingPatientChat() {
 function Sidebar() {
   const navigate = useNavigate();
   const { session } = useAuthState();
+  const [dashboardClinicId, setDashboardClinicId] = useState(getWorkspaceSelection().clinicId || "");
+
+  useEffect(() => subscribeWorkspaceSelection((selection) => setDashboardClinicId(selection.clinicId || "")), []);
+
+  const dashboardPath = dashboardClinicId ? `/dashboard/${dashboardClinicId}` : "/dashboard";
 
   async function logout() {
     await supabase?.auth.signOut();
@@ -352,12 +326,15 @@ function Sidebar() {
       <ClinicSwitcher />
 
       <nav className="nav-list">
-        {navItems.map((item) => (
-          <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={item.path} key={item.label}>
-            <item.icon size={18} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const path = item.path === "/dashboard" ? dashboardPath : item.path;
+          return (
+            <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label}>
+              <item.icon size={18} />
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="sidebar-card account-card">
@@ -377,6 +354,7 @@ function Sidebar() {
 }
 
 function ClinicSwitcher() {
+  const navigate = useNavigate();
   const [clinics, setClinics] = useState<ClinicWorkspaceOption[]>([]);
   const [selected, setSelected] = useState(getWorkspaceSelection().clinicId || "");
   const [status, setStatus] = useState("Loading clinics…");
@@ -403,7 +381,8 @@ function ClinicSwitcher() {
   function switchClinic(clinicId: string) {
     setSelected(clinicId);
     setSelectedClinic(clinicId);
-    window.location.reload();
+    if (window.location.pathname.startsWith("/dashboard")) navigate(`/dashboard/${clinicId}`);
+    else window.location.reload();
   }
 
   const activeClinic = clinics.find((clinic) => clinic.clinicId === selected);
@@ -426,10 +405,40 @@ function PageHeader(_props: { eyebrow: string; title: string; action?: string })
   return null;
 }
 
+function DashboardRedirect() {
+  const clinicId = getWorkspaceSelection().clinicId;
+  return <Navigate to={clinicId ? `/dashboard/${clinicId}` : "/clinics"} replace />;
+}
+
 function DashboardPage() {
+  const { clinicId } = useParams();
+  const [stats, setStats] = useState({ chats: 0, sessions: 0, appointments: 0, handoffs: 0, emergencies: 0, knowledge: 0 });
+  const [status, setStatus] = useState("Loading analytics…");
+
+  async function loadDashboardStats() {
+    const activeClinicId = clinicId || getWorkspaceSelection().clinicId;
+    if (!activeClinicId) return setStatus("Choose a clinic first.");
+    if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
+    if (!supabase) return setStatus("Supabase is not configured.");
+
+    const [messages, sessions, appointments, handoffs, emergencies, knowledge] = await Promise.all([
+      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("handoff_requested", true),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("emergency_flag", true),
+      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
+    ]);
+    setStats({ chats: messages.count || 0, sessions: sessions.count || 0, appointments: appointments.count || 0, handoffs: handoffs.count || 0, emergencies: emergencies.count || 0, knowledge: knowledge.count || 0 });
+    setStatus("Clinic analytics loaded.");
+  }
+
+  useEffect(() => {
+    void loadDashboardStats();
+  }, [clinicId]);
+
   return (
     <>
-      <PageHeader eyebrow="Storme Dental Clinic" title="AI receptionist command center" />
       <section className="hero-grid">
         <div className="hero-card">
           <div className="hero-content">
@@ -437,16 +446,21 @@ function DashboardPage() {
             <h2>Answer patient questions and book appointments 24/7.</h2>
             <p>StormeAI gives clinics a safe, configurable AI receptionist that answers from approved knowledge, collects booking details, and escalates sensitive cases to staff.</p>
             <div className="hero-actions">
-              <button className="primary-button">Review setup <ArrowRight size={17} /></button>
-              <button className="ghost-button">View patient widget</button>
+              <NavLink className="primary-button" to="/ai-receptionist">Review setup <ArrowRight size={17} /></NavLink>
+              <button className="ghost-button" type="button" onClick={() => document.querySelector<HTMLButtonElement>(".floating-chat-button")?.click()}>View patient widget</button>
             </div>
           </div>
         </div>
         <HealthCard />
       </section>
 
-      <section className="metrics-grid">
-        {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
+      <section className="metrics-grid analytics-grid">
+        <MetricCard label="Chat messages" value={String(stats.chats)} delta={status} tone="blue" />
+        <MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Total patient conversations" tone="teal" />
+        <MetricCard label="Appointments" value={String(stats.appointments)} delta="Booking requests" tone="green" />
+        <MetricCard label="Handoffs" value={String(stats.handoffs)} delta="Human support needed" tone="amber" />
+        <MetricCard label="Urgent flags" value={String(stats.emergencies)} delta="Emergency safety triggers" tone="red" />
+        <MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved clinic sources" tone="blue" />
       </section>
 
       <section className="content-grid two-one">
@@ -963,7 +977,7 @@ function AppointmentsPage() {
           <AppointmentTable rows={appointments} loading={loading} onStatusChange={updateAppointmentStatus} />
         </Panel>
         <Panel title="Scheduling rules" subtitle="How the AI collects bookings" icon={ClipboardList}>
-          <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Manual now · n8n-ready"]]} />
+          <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Manual staff confirmation"]]} />
         </Panel>
       </section>
       {createModalOpen && (
@@ -988,86 +1002,20 @@ function AppointmentsPage() {
   );
 }
 
-function WorkflowsPage() {
-  const defaultNodes = ["Patient chat", "Classify intent", "Book or handoff", "Notify staff"];
-  const [workflows, setWorkflows] = useState<WorkflowRow[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [status, setStatus] = useState("Loading workflows…");
-  const [form, setForm] = useState({ name: "Patient booking flow", description: "Collect booking details and notify staff.", webhookUrl: "", nodes: defaultNodes.join("\n") });
-
-  async function loadWorkflows() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
-    const [{ data, error }, eventsResult] = await Promise.all([
-      supabase.from("workflows").select("id,name,description,is_active,n8n_webhook_url,react_flow").eq("clinic_id", clinicId).order("updated_at", { ascending: false }),
-      supabase.from("workflow_events").select("event_type,delivery_status,created_at,error_message").eq("clinic_id", clinicId).order("created_at", { ascending: false }).limit(8),
-    ]);
-    if (error) return setStatus(`Failed to load workflows: ${error.message}`);
-    setWorkflows((data || []).map((row: any) => ({ id: row.id, name: row.name, description: row.description || "", isActive: row.is_active, webhookUrl: row.n8n_webhook_url || "", nodes: row.react_flow?.nodes?.map((node: any) => node.data?.label || node.id) || defaultNodes })));
-    setEvents(eventsResult.data || []);
-    setStatus(`${data?.length || 0} workflow${data?.length === 1 ? "" : "s"} configured.`);
-  }
-
-  useEffect(() => {
-    void loadWorkflows();
-    return subscribeWorkspaceSelection(() => void loadWorkflows());
-  }, []);
-
-  async function saveWorkflow(event: FormEvent) {
-    event.preventDefault();
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return;
-    const nodeLabels = form.nodes.split("\n").map((node) => node.trim()).filter(Boolean);
-    const reactFlow = { nodes: nodeLabels.map((label, index) => ({ id: `node-${index + 1}`, position: { x: index * 220, y: 80 }, data: { label } })), edges: nodeLabels.slice(1).map((_, index) => ({ id: `edge-${index + 1}`, source: `node-${index + 1}`, target: `node-${index + 2}` })) };
-    const { error } = await supabase.from("workflows").insert({ clinic_id: clinicId, name: form.name, description: form.description, n8n_webhook_url: form.webhookUrl || null, is_active: true, react_flow: reactFlow });
-    if (error) setStatus(`Workflow save failed: ${error.message}`);
-    else { setStatus("Workflow saved."); await loadWorkflows(); }
-  }
-
-  async function toggleWorkflow(workflow: WorkflowRow) {
-    if (!supabase) return;
-    const { error } = await supabase.from("workflows").update({ is_active: !workflow.isActive }).eq("id", workflow.id);
-    if (error) setStatus(`Workflow update failed: ${error.message}`);
-    else await loadWorkflows();
-  }
-
-  return (
-    <section className="content-grid two-one">
-      <Panel title="Workflow builder" subtitle={status} icon={GitBranch}>
-        <form className="workflow-builder-form" onSubmit={saveWorkflow}>
-          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Workflow name" />
-          <input value={form.webhookUrl} onChange={(event) => setForm({ ...form, webhookUrl: event.target.value })} placeholder="Optional n8n webhook URL" />
-          <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Workflow description" />
-          <textarea value={form.nodes} onChange={(event) => setForm({ ...form, nodes: event.target.value })} placeholder="One workflow step per line" />
-          <button className="primary-button" type="submit">Save workflow</button>
-        </form>
-        <div className="workflow-list">{workflows.map((workflow) => <div className="workflow-record" key={workflow.id}><div><strong>{workflow.name}</strong><span>{workflow.description || "No description"}</span></div><button className="ghost-button" type="button" onClick={() => void toggleWorkflow(workflow)}>{workflow.isActive ? "Deactivate" : "Activate"}</button><WorkflowPreview nodes={workflow.nodes} /></div>)}</div>
-      </Panel>
-      <Panel title="n8n events" subtitle="Recent automation deliveries" icon={Zap}>
-        <div className="config-list">{events.length ? events.map((event, index) => <div className="config-row" key={`${event.event_type}-${index}`}><span>{event.event_type}</span><strong>{event.delivery_status}</strong></div>) : <p className="empty-state">No workflow events yet.</p>}</div>
-      </Panel>
-    </section>
-  );
-}
-
 function BillingPage() {
-  const [billing, setBilling] = useState<BillingRecord>({ provider: "manual", status: "trial", plan: "starter", monthlyChats: 500, knowledgeDocuments: 10, staffUsers: 2, manualReference: "", manualNotes: "", paddleCustomerId: "", paddleSubscriptionId: "", paddleProductId: "", paddlePriceId: "" });
   const [usage, setUsage] = useState({ chats: 0, knowledge: 0, staff: 0 });
   const [status, setStatus] = useState("Loading billing…");
 
   async function loadBilling() {
     const clinicId = getWorkspaceSelection().clinicId;
     if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
-    const [{ data, error }, chats, knowledge, staff] = await Promise.all([
-      supabase.from("billing_subscriptions").select("*").eq("clinic_id", clinicId).maybeSingle(),
+    const [chats, knowledge, staff] = await Promise.all([
       supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("sender", "patient"),
       supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
       supabase.from("clinic_members").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
     ]);
-    if (error) return setStatus(`Billing load failed: ${error.message}`);
-    if (data) setBilling({ id: data.id, provider: data.billing_provider, status: data.subscription_status, plan: data.plan, monthlyChats: data.limits?.monthly_chats || 500, knowledgeDocuments: data.limits?.knowledge_documents || 10, staffUsers: data.limits?.staff_users || 2, manualReference: data.manual_payment_reference || "", manualNotes: data.manual_payment_notes || "", paddleCustomerId: data.paddle_customer_id || "", paddleSubscriptionId: data.paddle_subscription_id || "", paddleProductId: data.paddle_product_id || "", paddlePriceId: data.paddle_price_id || "" });
     setUsage({ chats: chats.count || 0, knowledge: knowledge.count || 0, staff: staff.count || 0 });
-    setStatus(data ? "Billing plan loaded." : "No billing record yet. Save one to enforce limits.");
+    setStatus("Fixed monthly plan loaded.");
   }
 
   useEffect(() => {
@@ -1075,67 +1023,23 @@ function BillingPage() {
     return subscribeWorkspaceSelection(() => void loadBilling());
   }, []);
 
-  async function saveBilling(event: FormEvent) {
-    event.preventDefault();
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return;
-    const payload = { clinic_id: clinicId, billing_provider: billing.provider, subscription_status: billing.status, plan: billing.plan, manual_payment_reference: billing.manualReference || null, manual_payment_notes: billing.manualNotes || null, manual_payment_confirmed_at: billing.status === "active" ? new Date().toISOString() : null, paddle_customer_id: billing.paddleCustomerId || null, paddle_subscription_id: billing.paddleSubscriptionId || null, paddle_product_id: billing.paddleProductId || null, paddle_price_id: billing.paddlePriceId || null, limits: { monthly_chats: billing.monthlyChats, knowledge_documents: billing.knowledgeDocuments, staff_users: billing.staffUsers } };
-    const { error } = await supabase.from("billing_subscriptions").upsert(payload, { onConflict: "clinic_id" });
-    if (error) setStatus(`Billing save failed: ${error.message}`);
-    else { setStatus("Billing and limits saved."); await loadBilling(); }
-  }
-
   return (
     <section className="content-grid two-one">
-      <Panel title="Manual billing + plan enforcement" subtitle={status} icon={WalletCards}>
-        <form className="billing-settings-form" onSubmit={saveBilling}>
-          <select value={billing.provider} onChange={(event) => setBilling({ ...billing, provider: event.target.value as BillingRecord["provider"] })}><option value="manual">Manual</option><option value="paddle">Paddle prepared</option></select>
-          <select value={billing.status} onChange={(event) => setBilling({ ...billing, status: event.target.value })}><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="canceled">Canceled</option></select>
-          <input value={billing.plan} onChange={(event) => setBilling({ ...billing, plan: event.target.value })} placeholder="Plan" />
-          <input type="number" value={billing.monthlyChats} onChange={(event) => setBilling({ ...billing, monthlyChats: Number(event.target.value) })} placeholder="Monthly chats" />
-          <input type="number" value={billing.knowledgeDocuments} onChange={(event) => setBilling({ ...billing, knowledgeDocuments: Number(event.target.value) })} placeholder="Knowledge docs" />
-          <input type="number" value={billing.staffUsers} onChange={(event) => setBilling({ ...billing, staffUsers: Number(event.target.value) })} placeholder="Staff users" />
-          <input value={billing.manualReference} onChange={(event) => setBilling({ ...billing, manualReference: event.target.value })} placeholder="Manual payment reference" />
-          <input value={billing.paddlePriceId} onChange={(event) => setBilling({ ...billing, paddlePriceId: event.target.value })} placeholder="Paddle price ID for later" />
-          <textarea value={billing.manualNotes} onChange={(event) => setBilling({ ...billing, manualNotes: event.target.value })} placeholder="Payment notes / Paddle setup notes" />
-          <button className="primary-button" type="submit">Save billing setup</button>
-        </form>
+      <Panel title="StormeAI fixed plan" subtitle={status} icon={WalletCards}>
+        <div className="billing-card fixed-plan-card">
+          <div>
+            <span className="badge green">Fixed MVP plan</span>
+            <h3>₱10,000 / month</h3>
+            <p>Unlimited patient chats · Clinic AI receptionist · Knowledge base · Appointments · Safety handoff.</p>
+          </div>
+          <button className="primary-button" type="button">Manual billing</button>
+        </div>
       </Panel>
-      <Panel title="Usage limits" subtitle="MVP enforcement visibility" icon={Activity}>
-        <LimitBar label="Chats" used={usage.chats} limit={billing.monthlyChats} />
-        <LimitBar label="Knowledge docs" used={usage.knowledge} limit={billing.knowledgeDocuments} />
-        <LimitBar label="Staff users" used={usage.staff} limit={billing.staffUsers} />
-        <ConfigList items={[["Paddle automation", billing.provider === "paddle" ? "Prepared IDs saved" : "Deferred"], ["Manual billing", billing.status === "active" ? "Confirmed" : "Needs review"]]} />
+      <Panel title="Usage overview" subtitle="No chat cap on fixed plan" icon={Activity}>
+        <ConfigList items={[["Monthly price", "₱10,000"], ["Chats", "Unlimited"], ["Chat messages used", String(usage.chats)], ["Knowledge docs", String(usage.knowledge)], ["Staff users", String(usage.staff)], ["Billing model", "Fixed monthly manual billing"]]} />
       </Panel>
     </section>
   );
-}
-
-function AnalyticsPage() {
-  const [stats, setStats] = useState({ chats: 0, sessions: 0, appointments: 0, handoffs: 0, emergencies: 0, knowledge: 0 });
-  const [status, setStatus] = useState("Loading analytics…");
-
-  async function loadAnalytics() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
-    const [messages, sessions, appointments, handoffs, emergencies, knowledge] = await Promise.all([
-      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("handoff_requested", true),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("emergency_flag", true),
-      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-    ]);
-    setStats({ chats: messages.count || 0, sessions: sessions.count || 0, appointments: appointments.count || 0, handoffs: handoffs.count || 0, emergencies: emergencies.count || 0, knowledge: knowledge.count || 0 });
-    setStatus("Clinic analytics loaded.");
-  }
-
-  useEffect(() => {
-    void loadAnalytics();
-    return subscribeWorkspaceSelection(() => void loadAnalytics());
-  }, []);
-
-  return <section className="content-grid three-col analytics-grid"><MetricCard label="Chat messages" value={String(stats.chats)} delta={status} tone="blue" /><MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Total patient conversations" tone="teal" /><MetricCard label="Appointments" value={String(stats.appointments)} delta="Booking requests" tone="green" /><MetricCard label="Handoffs" value={String(stats.handoffs)} delta="Human support needed" tone="amber" /><MetricCard label="Urgent flags" value={String(stats.emergencies)} delta="Emergency safety triggers" tone="red" /><MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved clinic sources" tone="blue" /></section>;
 }
 
 function SafetyPage() {
@@ -1250,16 +1154,6 @@ function AppointmentTable({ rows, loading, onStatusChange }: { rows: Appointment
 
 function SafetyStack() {
   return <div className="safety-stack">{["No diagnosis", "No prescriptions", "Emergency guidance", "Human handoff", "Audit sensitive cases"].map((rule) => <div className="safety-rule" key={rule}><Check size={15} /><span>{rule}</span></div>)}</div>;
-}
-
-function WorkflowPreview({ nodes = ["Greeting", "Intent", "Book", "Email", "n8n", "Handoff"] }: { nodes?: string[] }) {
-  const icons = [MessageSquareText, BrainCircuit, CalendarCheck, Mail, Zap, Users];
-  return <div className="workflow-canvas">{nodes.map((label, index) => { const Icon = icons[index % icons.length]; return <div className="workflow-node" key={`${label}-${index}`}><Icon size={16} /><span>{label}</span>{index < nodes.length - 1 && <ArrowRight className="node-arrow" size={15} />}</div>; })}</div>;
-}
-
-function LimitBar({ label, used, limit }: { label: string; used: number; limit: number }) {
-  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  return <Bar label={label} value={`${used} / ${limit}`} width={String(percent)} />;
 }
 
 function Bar({ label, value, width }: { label: string; value: string; width: string }) {

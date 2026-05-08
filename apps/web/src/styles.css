@@ -16,7 +16,6 @@ button { font: inherit; cursor: pointer; }
 #ai-receptionist,
 #knowledge-base,
 #appointments,
-#workflows,
 #billing,
 #safety {
   scroll-margin-top: 24px;
@@ -162,9 +161,6 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 .config-row strong { font-size: 14px; text-align: right; }
 .safety-rule { justify-content: flex-start; color: #166534; font-weight: 850; background: #f0fdf4; border-color: #bbf7d0; }
 .appointment-row { display: grid; grid-template-columns: 1.2fr 1fr auto; }
-.workflow-canvas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; background: #f8fafc; border-radius: 22px; padding: 16px; border: 1px dashed #cbd5e1; }
-.workflow-node { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 70px; border-radius: 18px; background: white; border: 1px solid #e2e8f0; color: #2563eb; font-weight: 850; }
-.node-arrow { position: absolute; right: -15px; color: #94a3b8; z-index: 2; }
 .billing-card { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px; border-radius: 22px; background: #f8fafc; }
 .billing-card h3 { margin: 13px 0 6px; font-size: 22px; letter-spacing: -0.04em; }
 .billing-card p { margin: 0; color: #64748b; }
@@ -1351,50 +1347,8 @@ button:disabled,
   .source-row button { min-height: 40px; padding: 0 13px; font-size: 13px; }
 }
 
-.workflow-builder-form,
-.billing-settings-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 22px;
-  background: #f8fafc;
-}
-.workflow-builder-form textarea,
-.billing-settings-form textarea,
-.workflow-builder-form button,
-.billing-settings-form button { grid-column: 1 / -1; }
-.workflow-builder-form textarea { min-height: 90px; }
-.billing-settings-form textarea { min-height: 110px; }
-.workflow-builder-form input,
-.workflow-builder-form textarea,
-.billing-settings-form input,
-.billing-settings-form textarea,
-.billing-settings-form select {
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 11px 12px;
-  background: #fff;
-  color: #0b1220;
-  font: inherit;
-  font-weight: 800;
-}
-.workflow-list { display: grid; gap: 14px; }
-.workflow-record {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #fff;
-}
-.workflow-record > div:first-child strong { display: block; }
-.workflow-record > div:first-child span { display: block; margin-top: 4px; color: #64748b; font-size: 13px; }
 .analytics-grid { margin-top: 0; }
 .emergency-box { margin-top: 14px; }
 @media (max-width: 760px) {
-  .workflow-builder-form,
   .billing-settings-form { grid-template-columns: 1fr; }
 }

@@ -9,8 +9,8 @@ This schema is for the chat-only AI receptionist MVP.
 - RLS enabled on all tenant data tables
 - Appointment-first data model
 - RAG-ready knowledge tables using Supabase `pgvector`
-- Manual billing first, Paddle-ready fields later
-- n8n workflow event tracking
+- Fixed manual billing at ₱10,000/month with unlimited chats
+- Dashboard analytics from chats, appointments, handoffs, and knowledge documents
 
 ## Main tables
 
@@ -26,7 +26,6 @@ This schema is for the chat-only AI receptionist MVP.
 - `knowledge_documents`
 - `knowledge_chunks`
 - `workflows`
-- `workflow_events`
 - `billing_subscriptions`
 - `usage_events`
 

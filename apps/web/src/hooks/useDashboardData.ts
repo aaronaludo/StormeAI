@@ -47,7 +47,7 @@ export function useDashboardData(clinicId?: string): DashboardData {
         client.from("appointments").select("status, scheduled_start_at, requested_start_at, patients(full_name), services(name)").eq("clinic_id", clinicId).limit(5),
         client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
         client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("handoff_requested", true),
-        client.from("workflow_events").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("event_type", "knowledge.gap_detected"),
+        client.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("status", "draft"),
       ]);
 
       if (cancelled) return;

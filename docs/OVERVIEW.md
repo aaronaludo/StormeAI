@@ -13,7 +13,7 @@ Patients get instant chat answers and appointment help. Clinics reduce repetitiv
 - Collects appointment details through chat
 - Creates/reschedules/cancels appointments
 - Sends confirmation and reminder emails
-- Triggers n8n workflows through webhooks
+- Routes appointment and handoff work inside the StormeAI dashboard
 - Routes complex or sensitive cases to clinic staff
 
 ## What it must not do
@@ -41,6 +41,6 @@ Patients get instant chat answers and appointment help. Clinics reduce repetitiv
 - Appointment-first UX
 - Local Ollama default for development/private deployments
 - Optional OpenAI/Claude provider routing
-- n8n automation
-- React Flow workflow control
-- Paddle billing for SaaS subscriptions
+- Built-in appointment and handoff flows
+- Clinic-specific dashboard routing
+- Fixed manual billing at ₱10,000/month with unlimited chats

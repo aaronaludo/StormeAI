@@ -56,7 +56,7 @@ export function ReceptionistSettingsForm({ value, loading, saving, status, onCha
       <div className="settings-section-card">
         <SectionHeader icon={Clock} title="Clinic operating rules" subtitle="Dynamic data the receptionist can use while answering." />
         <div className="form-grid">
-          <label>Business hours<input value={settings.businessHours} onChange={(e) => update({ businessHours: e.target.value })} placeholder="Mon-Sat, 9AM-6PM" /></label>
+          <BusinessHoursPicker value={settings.businessHours} onChange={(businessHours) => update({ businessHours })} />
           <label>Escalation contact<input value={settings.escalationContact} onChange={(e) => update({ escalationContact: e.target.value })} placeholder="frontdesk@clinic.com / +63..." /></label>
           <label className="full-field">Booking instructions<textarea value={settings.bookingInstructions} onChange={(e) => update({ bookingInstructions: e.target.value })} rows={3} /></label>
           <label className="full-field">Human handoff instructions<textarea value={settings.handoffInstructions} onChange={(e) => update({ handoffInstructions: e.target.value })} rows={3} /></label>
@@ -81,6 +81,93 @@ export function ReceptionistSettingsForm({ value, loading, saving, status, onCha
       <button className="primary-button" type="submit" disabled={loading || saving}>{saving ? "Saving…" : "Save receptionist settings"}</button>
     </form>
   );
+}
+
+const dayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function BusinessHoursPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const parsed = parseBusinessHours(value);
+  const [days, setDays] = useState<string[]>(parsed.days);
+  const [openTime, setOpenTime] = useState(parsed.openTime);
+  const [closeTime, setCloseTime] = useState(parsed.closeTime);
+
+  useEffect(() => {
+    const next = parseBusinessHours(value);
+    setDays(next.days);
+    setOpenTime(next.openTime);
+    setCloseTime(next.closeTime);
+  }, [value]);
+
+  function commit(nextDays = days, nextOpen = openTime, nextClose = closeTime) {
+    const formattedDays = compactDays(nextDays);
+    onChange(nextDays.length ? `${formattedDays}, ${formatTime(nextOpen)}-${formatTime(nextClose)}` : "Closed");
+  }
+
+  function toggleDay(day: string) {
+    const next = days.includes(day) ? days.filter((item) => item !== day) : [...days, dayOptions.find((item) => item === day)!].sort((a, b) => dayOptions.indexOf(a) - dayOptions.indexOf(b));
+    setDays(next);
+    commit(next);
+  }
+
+  return (
+    <div className="business-hours-picker full-field">
+      <div className="field-label">Business hours</div>
+      <div className="day-chip-grid">
+        {dayOptions.map((day) => (
+          <button className={days.includes(day) ? "active" : ""} type="button" key={day} onClick={() => toggleDay(day)}>{day}</button>
+        ))}
+      </div>
+      <div className="time-range-grid">
+        <label>Opening time<input type="time" value={openTime} onChange={(event) => { setOpenTime(event.target.value); commit(days, event.target.value, closeTime); }} /></label>
+        <label>Closing time<input type="time" value={closeTime} onChange={(event) => { setCloseTime(event.target.value); commit(days, openTime, event.target.value); }} /></label>
+      </div>
+      <p>Saved as: <strong>{value || "Mon-Sat, 9AM-6PM"}</strong></p>
+    </div>
+  );
+}
+
+function parseBusinessHours(value: string) {
+  const fallback = { days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], openTime: "09:00", closeTime: "18:00" };
+  if (!value || value.toLowerCase() === "closed") return fallback;
+
+  const lower = value.toLowerCase();
+  const days = dayOptions.filter((day) => lower.includes(day.toLowerCase()));
+  if (lower.includes("mon-sat")) days.splice(0, days.length, "Mon", "Tue", "Wed", "Thu", "Fri", "Sat");
+  if (lower.includes("mon-fri")) days.splice(0, days.length, "Mon", "Tue", "Wed", "Thu", "Fri");
+
+  const times = [...value.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi)].map((match) => toTimeInput(match[1], match[2], match[3]));
+
+  return {
+    days: days.length ? days : fallback.days,
+    openTime: times[0] || fallback.openTime,
+    closeTime: times[1] || fallback.closeTime,
+  };
+}
+
+function toTimeInput(hourText: string, minuteText?: string, meridiem?: string) {
+  let hour = Number(hourText);
+  const minute = Number(minuteText || 0);
+  const marker = meridiem?.toLowerCase();
+  if (marker === "pm" && hour < 12) hour += 12;
+  if (marker === "am" && hour === 12) hour = 0;
+  if (hour > 23 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function formatTime(value: string) {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = minuteText || "00";
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}${minute === "00" ? "" : `:${minute}`}${meridiem}`;
+}
+
+function compactDays(days: string[]) {
+  const ordered = days.sort((a, b) => dayOptions.indexOf(a) - dayOptions.indexOf(b));
+  if (ordered.join(",") === "Mon,Tue,Wed,Thu,Fri,Sat") return "Mon-Sat";
+  if (ordered.join(",") === "Mon,Tue,Wed,Thu,Fri") return "Mon-Fri";
+  return ordered.join(", ");
 }
 
 function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ComponentType<{ size?: number }>; title: string; subtitle: string }) {

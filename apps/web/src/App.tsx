@@ -119,7 +119,7 @@ function App() {
       </aside>
 
       <main className="main-panel">
-        <header className="topbar">
+        <header className="topbar" id="dashboard">
           <div>
             <p className="eyebrow">Storme Dental Clinic</p>
             <h1>AI receptionist command center</h1>
@@ -130,7 +130,7 @@ function App() {
           </div>
         </header>
 
-        <section className="hero-grid">
+        <section className="hero-grid" id="ai-receptionist">
           <div className="hero-card">
             <div className="hero-content">
               <span className="badge teal">Chat-only AI front desk</span>
@@ -182,7 +182,7 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="AI route" subtitle="Provider and safety mode" icon={BrainCircuit}>
+          <Panel id="ai-providers" title="AI route" subtitle="Provider and safety mode" icon={BrainCircuit}>
             <div className="provider-stack">
               {providerCards.map((provider) => (
                 <div className={`provider-card ${provider.active ? "active" : ""}`} key={provider.name}>
@@ -209,7 +209,7 @@ function App() {
             />
           </Panel>
 
-          <Panel title="Knowledge base" subtitle="Clinic-approved RAG sources" icon={FileText}>
+          <Panel id="knowledge-base" title="Knowledge base" subtitle="Clinic-approved RAG sources" icon={FileText}>
             <div className="source-list">
               {knowledgeSources.map((source) => (
                 <div className="source-row" key={source.title}>
@@ -223,7 +223,7 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="Safety rules" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}>
+          <Panel id="safety" title="Safety rules" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}>
             <div className="safety-stack">
               {[
                 "No diagnosis",
@@ -241,7 +241,7 @@ function App() {
         </section>
 
         <section className="content-grid two-col">
-          <Panel title="Appointment inbox" subtitle="Requests, confirmations, and reschedules" icon={CalendarCheck}>
+          <Panel id="appointments" title="Appointment inbox" subtitle="Requests, confirmations, and reschedules" icon={CalendarCheck}>
             <div className="appointment-table">
               {appointmentRows.map((row) => (
                 <div className="appointment-row" key={row.patient}>
@@ -256,13 +256,13 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="Workflow automation" subtitle="React Flow control, n8n execution" icon={GitBranch}>
+          <Panel id="workflows" title="Workflow automation" subtitle="React Flow control, n8n execution" icon={GitBranch}>
             <WorkflowPreview />
           </Panel>
         </section>
 
         <section className="content-grid two-col bottom-row">
-          <Panel title="Manual billing first" subtitle="Paddle can be enabled later" icon={WalletCards}>
+          <Panel id="billing" title="Manual billing first" subtitle="Paddle can be enabled later" icon={WalletCards}>
             <div className="billing-card">
               <div>
                 <span className="badge green">Active</span>
@@ -298,9 +298,9 @@ function MetricCard({ label, value, delta, tone }: Metric) {
   );
 }
 
-function Panel({ title, subtitle, icon: Icon, children }: { title: string; subtitle: string; icon: React.ComponentType<{ size?: number }>; children: React.ReactNode }) {
+function Panel({ id, title, subtitle, icon: Icon, children }: { id?: string; title: string; subtitle: string; icon: React.ComponentType<{ size?: number }>; children: React.ReactNode }) {
   return (
-    <section className="panel-card">
+    <section className="panel-card" id={id}>
       <div className="panel-heading">
         <div className="panel-title-row">
           <span className="panel-icon"><Icon size={18} /></span>

@@ -19,7 +19,9 @@ type ClinicContext = {
   name: string;
   clinic_type?: string | null;
   timezone?: string | null;
-  ai_receptionists?: { name?: string | null; tone?: string | null; language_style?: string | null }[];
+  receptionist_name?: string | null;
+  receptionist_tone?: string | null;
+  receptionist_language_style?: string | null;
 };
 
 export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput): Promise<ReceptionistChatTurnResult> {
@@ -36,9 +38,9 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
   const prompt = buildReceptionistSystemPrompt({
     clinicName: clinic.name,
     clinicType: clinic.clinic_type || undefined,
-    receptionistName: clinic.ai_receptionists?.[0]?.name || "Mia",
-    tone: clinic.ai_receptionists?.[0]?.tone || undefined,
-    languageStyle: clinic.ai_receptionists?.[0]?.language_style || undefined,
+    receptionistName: clinic.receptionist_name || "Mia",
+    tone: clinic.receptionist_tone || undefined,
+    languageStyle: clinic.receptionist_language_style || undefined,
     useApprovedKnowledgeOnly: true,
     offerAppointmentWhenRelevant: true,
   }, citations);
@@ -86,22 +88,14 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
 async function getActiveClinic(): Promise<ClinicContext> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data: membership, error: membershipError } = await supabase
-    .from("clinic_members")
-    .select("clinic_id")
-    .limit(1)
+  const { data, error } = await supabase
+    .rpc("get_active_clinic_workspace")
     .single();
 
-  if (membershipError) throw new Error(`No clinic workspace found for this account: ${membershipError.message}`);
+  if (error) throw new Error(`No clinic workspace found for this account: ${error.message}`);
+  if (!data) throw new Error("No clinic workspace found. Please finish onboarding first.");
 
-  const { data: clinic, error: clinicError } = await supabase
-    .from("clinics")
-    .select("id,name,clinic_type,timezone,ai_receptionists(name,tone,language_style)")
-    .eq("id", membership.clinic_id)
-    .single();
-
-  if (clinicError) throw clinicError;
-  return clinic as ClinicContext;
+  return data as ClinicContext;
 }
 
 async function createChatSession(clinicId: string) {

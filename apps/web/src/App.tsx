@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
+import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 
@@ -210,7 +211,7 @@ function ReceptionistPage() {
       <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, providers, and behavior" />
       <section className="content-grid two-col">
         <Panel title="Receptionist personality" subtitle="Tone, language, and chat behavior" icon={Bot}>
-          <ConfigList items={[["Name", "Mia"], ["Tone", "Warm, professional, concise"], ["Language", "English + Taglish"], ["Behavior", "Appointment-first"], ["Fallback", "Human handoff when uncertain"]]} />
+          <ReceptionistSettingsForm />
         </Panel>
         <Panel title="System prompt preview" subtitle="Clinic-safe operating rules" icon={ClipboardLike}>
           <div className="prompt-box">

@@ -46,7 +46,7 @@ export function PatientChatWidget() {
       setMessages((current) => [...current, {
         id: crypto.randomUUID(),
         sender: "assistant",
-        body: error instanceof Error ? error.message : "I can’t send this message right now. Please try again.",
+        body: error instanceof Error ? error.message : `Chat failed: ${JSON.stringify(error)}`,
       }]);
       setState("error");
     }

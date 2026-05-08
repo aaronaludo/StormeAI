@@ -92,8 +92,8 @@ async function getActiveClinic(): Promise<ClinicContext> {
     .rpc("get_active_clinic_workspace")
     .single();
 
-  if (error) throw new Error(`No clinic workspace found for this account: ${error.message}`);
-  if (!data) throw new Error("No clinic workspace found. Please finish onboarding first.");
+  if (error) throwSupabaseError("Find active clinic workspace", error);
+  if (!data) throw new Error("No clinic workspace found for this account. Please finish onboarding first.");
 
   return data as ClinicContext;
 }
@@ -107,7 +107,7 @@ async function createChatSession(clinicId: string) {
     .select("id")
     .single();
 
-  if (error) throw error;
+  if (error) throwSupabaseError("Create chat session", error);
   return data.id as string;
 }
 
@@ -130,7 +130,7 @@ async function insertMessage(input: {
     metadata: input.metadata || {},
   });
 
-  if (error) throw error;
+  if (error) throwSupabaseError("Save chat message", error);
 }
 
 async function updateSession(sessionId: string, flags: { emergency: boolean; handoff: boolean }) {
@@ -162,11 +162,35 @@ async function retrieveKnowledge(clinicId: string, message: string): Promise<Rag
   if (orFilter) query = query.or(orFilter);
 
   const { data, error } = await query;
-  if (error) return [];
+  if (error) {
+    console.warn("Knowledge lookup failed", error);
+    return [];
+  }
 
   return (data || [])
     .filter((item) => item.content)
     .map((item) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
+}
+
+function throwSupabaseError(action: string, error: unknown): never {
+  if (error instanceof Error) throw new Error(`${action} failed: ${error.message}`);
+
+  if (error && typeof error === "object") {
+    const details = error as { message?: string; details?: string; hint?: string; code?: string };
+    const parts = [details.message, details.details, details.hint, details.code ? `code: ${details.code}` : undefined].filter(Boolean);
+    throw new Error(`${action} failed: ${parts.join(" · ") || JSON.stringify(error)}`);
+  }
+
+  throw new Error(`${action} failed: ${String(error)}`);
+}
+
+function describeUnknownError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const details = error as { message?: string; details?: string; hint?: string; code?: string };
+    return [details.message, details.details, details.hint, details.code ? `code: ${details.code}` : undefined].filter(Boolean).join(" · ") || JSON.stringify(error);
+  }
+  return String(error);
 }
 
 function safeFallback(message: string, citations: RagContext, providerError?: string) {

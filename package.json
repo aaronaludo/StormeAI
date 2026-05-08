@@ -13,5 +13,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "mcp:build": "npm run build -w @stormeai/mcp-stormeai",
     "mcp:start": "npm run start -w @stormeai/mcp-stormeai"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.15.0"
   }
 }

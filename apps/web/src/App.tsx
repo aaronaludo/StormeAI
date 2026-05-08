@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
   { label: "Appointments", path: "/appointments", icon: CalendarCheck },
   { label: "Workflows", path: "/workflows", icon: Workflow },
   { label: "Billing", path: "/billing", icon: WalletCards },
+  { label: "Analytics", path: "/analytics", icon: Activity },
   { label: "Safety", path: "/safety", icon: ShieldCheck },
   { label: "Account Settings", path: "/account", icon: Settings2 },
 ];
@@ -137,6 +138,31 @@ type ChatMessageRow = {
   createdAt: string;
 };
 
+type WorkflowRow = {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  webhookUrl: string;
+  nodes: string[];
+};
+
+type BillingRecord = {
+  id?: string;
+  provider: "manual" | "paddle";
+  status: string;
+  plan: string;
+  monthlyChats: number;
+  knowledgeDocuments: number;
+  staffUsers: number;
+  manualReference: string;
+  manualNotes: string;
+  paddleCustomerId: string;
+  paddleSubscriptionId: string;
+  paddleProductId: string;
+  paddlePriceId: string;
+};
+
 const providerCards = [
   { name: "Ollama", model: "qwen2.5:7b", tag: "Default local", active: true },
   { name: "OpenAI", model: "Optional cloud fallback", tag: "Disabled", active: false },
@@ -166,6 +192,7 @@ function App() {
             <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/workflows" element={<WorkflowsPage />} />
             <Route path="/billing" element={<BillingPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/safety" element={<SafetyPage />} />
             <Route path="/account" element={<AccountSettingsPage />} />
           </Route>
@@ -962,48 +989,190 @@ function AppointmentsPage() {
 }
 
 function WorkflowsPage() {
+  const defaultNodes = ["Patient chat", "Classify intent", "Book or handoff", "Notify staff"];
+  const [workflows, setWorkflows] = useState<WorkflowRow[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [status, setStatus] = useState("Loading workflows…");
+  const [form, setForm] = useState({ name: "Patient booking flow", description: "Collect booking details and notify staff.", webhookUrl: "", nodes: defaultNodes.join("\n") });
+
+  async function loadWorkflows() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    const [{ data, error }, eventsResult] = await Promise.all([
+      supabase.from("workflows").select("id,name,description,is_active,n8n_webhook_url,react_flow").eq("clinic_id", clinicId).order("updated_at", { ascending: false }),
+      supabase.from("workflow_events").select("event_type,delivery_status,created_at,error_message").eq("clinic_id", clinicId).order("created_at", { ascending: false }).limit(8),
+    ]);
+    if (error) return setStatus(`Failed to load workflows: ${error.message}`);
+    setWorkflows((data || []).map((row: any) => ({ id: row.id, name: row.name, description: row.description || "", isActive: row.is_active, webhookUrl: row.n8n_webhook_url || "", nodes: row.react_flow?.nodes?.map((node: any) => node.data?.label || node.id) || defaultNodes })));
+    setEvents(eventsResult.data || []);
+    setStatus(`${data?.length || 0} workflow${data?.length === 1 ? "" : "s"} configured.`);
+  }
+
+  useEffect(() => {
+    void loadWorkflows();
+    return subscribeWorkspaceSelection(() => void loadWorkflows());
+  }, []);
+
+  async function saveWorkflow(event: FormEvent) {
+    event.preventDefault();
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return;
+    const nodeLabels = form.nodes.split("\n").map((node) => node.trim()).filter(Boolean);
+    const reactFlow = { nodes: nodeLabels.map((label, index) => ({ id: `node-${index + 1}`, position: { x: index * 220, y: 80 }, data: { label } })), edges: nodeLabels.slice(1).map((_, index) => ({ id: `edge-${index + 1}`, source: `node-${index + 1}`, target: `node-${index + 2}` })) };
+    const { error } = await supabase.from("workflows").insert({ clinic_id: clinicId, name: form.name, description: form.description, n8n_webhook_url: form.webhookUrl || null, is_active: true, react_flow: reactFlow });
+    if (error) setStatus(`Workflow save failed: ${error.message}`);
+    else { setStatus("Workflow saved."); await loadWorkflows(); }
+  }
+
+  async function toggleWorkflow(workflow: WorkflowRow) {
+    if (!supabase) return;
+    const { error } = await supabase.from("workflows").update({ is_active: !workflow.isActive }).eq("id", workflow.id);
+    if (error) setStatus(`Workflow update failed: ${error.message}`);
+    else await loadWorkflows();
+  }
+
   return (
-    <>
-      <PageHeader eyebrow="Workflows" title="React Flow control, n8n execution" action="Create flow" />
-      <section className="content-grid two-col">
-        <Panel title="Workflow canvas" subtitle="Patient chat automation map" icon={GitBranch}><WorkflowPreview /></Panel>
-        <Panel title="n8n webhooks" subtitle="Connected automation events" icon={Zap}>
-          <ConfigList items={[["appointment.created", "Enabled"], ["appointment.rescheduled", "Enabled"], ["chat.handoff_requested", "Enabled"], ["knowledge.gap_detected", "Enabled"]]} />
-        </Panel>
-      </section>
-    </>
+    <section className="content-grid two-one">
+      <Panel title="Workflow builder" subtitle={status} icon={GitBranch}>
+        <form className="workflow-builder-form" onSubmit={saveWorkflow}>
+          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Workflow name" />
+          <input value={form.webhookUrl} onChange={(event) => setForm({ ...form, webhookUrl: event.target.value })} placeholder="Optional n8n webhook URL" />
+          <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Workflow description" />
+          <textarea value={form.nodes} onChange={(event) => setForm({ ...form, nodes: event.target.value })} placeholder="One workflow step per line" />
+          <button className="primary-button" type="submit">Save workflow</button>
+        </form>
+        <div className="workflow-list">{workflows.map((workflow) => <div className="workflow-record" key={workflow.id}><div><strong>{workflow.name}</strong><span>{workflow.description || "No description"}</span></div><button className="ghost-button" type="button" onClick={() => void toggleWorkflow(workflow)}>{workflow.isActive ? "Deactivate" : "Activate"}</button><WorkflowPreview nodes={workflow.nodes} /></div>)}</div>
+      </Panel>
+      <Panel title="n8n events" subtitle="Recent automation deliveries" icon={Zap}>
+        <div className="config-list">{events.length ? events.map((event, index) => <div className="config-row" key={`${event.event_type}-${index}`}><span>{event.event_type}</span><strong>{event.delivery_status}</strong></div>) : <p className="empty-state">No workflow events yet.</p>}</div>
+      </Panel>
+    </section>
   );
 }
 
 function BillingPage() {
+  const [billing, setBilling] = useState<BillingRecord>({ provider: "manual", status: "trial", plan: "starter", monthlyChats: 500, knowledgeDocuments: 10, staffUsers: 2, manualReference: "", manualNotes: "", paddleCustomerId: "", paddleSubscriptionId: "", paddleProductId: "", paddlePriceId: "" });
+  const [usage, setUsage] = useState({ chats: 0, knowledge: 0, staff: 0 });
+  const [status, setStatus] = useState("Loading billing…");
+
+  async function loadBilling() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    const [{ data, error }, chats, knowledge, staff] = await Promise.all([
+      supabase.from("billing_subscriptions").select("*").eq("clinic_id", clinicId).maybeSingle(),
+      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("sender", "patient"),
+      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+      supabase.from("clinic_members").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+    ]);
+    if (error) return setStatus(`Billing load failed: ${error.message}`);
+    if (data) setBilling({ id: data.id, provider: data.billing_provider, status: data.subscription_status, plan: data.plan, monthlyChats: data.limits?.monthly_chats || 500, knowledgeDocuments: data.limits?.knowledge_documents || 10, staffUsers: data.limits?.staff_users || 2, manualReference: data.manual_payment_reference || "", manualNotes: data.manual_payment_notes || "", paddleCustomerId: data.paddle_customer_id || "", paddleSubscriptionId: data.paddle_subscription_id || "", paddleProductId: data.paddle_product_id || "", paddlePriceId: data.paddle_price_id || "" });
+    setUsage({ chats: chats.count || 0, knowledge: knowledge.count || 0, staff: staff.count || 0 });
+    setStatus(data ? "Billing plan loaded." : "No billing record yet. Save one to enforce limits.");
+  }
+
+  useEffect(() => {
+    void loadBilling();
+    return subscribeWorkspaceSelection(() => void loadBilling());
+  }, []);
+
+  async function saveBilling(event: FormEvent) {
+    event.preventDefault();
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return;
+    const payload = { clinic_id: clinicId, billing_provider: billing.provider, subscription_status: billing.status, plan: billing.plan, manual_payment_reference: billing.manualReference || null, manual_payment_notes: billing.manualNotes || null, manual_payment_confirmed_at: billing.status === "active" ? new Date().toISOString() : null, paddle_customer_id: billing.paddleCustomerId || null, paddle_subscription_id: billing.paddleSubscriptionId || null, paddle_product_id: billing.paddleProductId || null, paddle_price_id: billing.paddlePriceId || null, limits: { monthly_chats: billing.monthlyChats, knowledge_documents: billing.knowledgeDocuments, staff_users: billing.staffUsers } };
+    const { error } = await supabase.from("billing_subscriptions").upsert(payload, { onConflict: "clinic_id" });
+    if (error) setStatus(`Billing save failed: ${error.message}`);
+    else { setStatus("Billing and limits saved."); await loadBilling(); }
+  }
+
   return (
-    <>
-      <PageHeader eyebrow="Billing" title="Manual billing first, Paddle later" action="Record payment" />
-      <section className="content-grid two-col">
-        <Panel title="Current plan" subtitle="Bank transfer/manual activation" icon={WalletCards}>
-          <div className="billing-card"><div><span className="badge green">Active</span><h3>Pro — manual bank transfer</h3><p>2,000 chats/month · 50 knowledge docs · n8n workflows enabled</p></div><button className="ghost-button">Record payment</button></div>
-        </Panel>
-        <Panel title="Plan limits" subtitle="Feature access controlled by subscription status" icon={Activity}>
-          <ConfigList items={[["Chats/month", "2,000"], ["Knowledge docs", "50"], ["Staff users", "5"], ["Paddle", "Deferred"]]} />
-        </Panel>
-      </section>
-    </>
+    <section className="content-grid two-one">
+      <Panel title="Manual billing + plan enforcement" subtitle={status} icon={WalletCards}>
+        <form className="billing-settings-form" onSubmit={saveBilling}>
+          <select value={billing.provider} onChange={(event) => setBilling({ ...billing, provider: event.target.value as BillingRecord["provider"] })}><option value="manual">Manual</option><option value="paddle">Paddle prepared</option></select>
+          <select value={billing.status} onChange={(event) => setBilling({ ...billing, status: event.target.value })}><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="canceled">Canceled</option></select>
+          <input value={billing.plan} onChange={(event) => setBilling({ ...billing, plan: event.target.value })} placeholder="Plan" />
+          <input type="number" value={billing.monthlyChats} onChange={(event) => setBilling({ ...billing, monthlyChats: Number(event.target.value) })} placeholder="Monthly chats" />
+          <input type="number" value={billing.knowledgeDocuments} onChange={(event) => setBilling({ ...billing, knowledgeDocuments: Number(event.target.value) })} placeholder="Knowledge docs" />
+          <input type="number" value={billing.staffUsers} onChange={(event) => setBilling({ ...billing, staffUsers: Number(event.target.value) })} placeholder="Staff users" />
+          <input value={billing.manualReference} onChange={(event) => setBilling({ ...billing, manualReference: event.target.value })} placeholder="Manual payment reference" />
+          <input value={billing.paddlePriceId} onChange={(event) => setBilling({ ...billing, paddlePriceId: event.target.value })} placeholder="Paddle price ID for later" />
+          <textarea value={billing.manualNotes} onChange={(event) => setBilling({ ...billing, manualNotes: event.target.value })} placeholder="Payment notes / Paddle setup notes" />
+          <button className="primary-button" type="submit">Save billing setup</button>
+        </form>
+      </Panel>
+      <Panel title="Usage limits" subtitle="MVP enforcement visibility" icon={Activity}>
+        <LimitBar label="Chats" used={usage.chats} limit={billing.monthlyChats} />
+        <LimitBar label="Knowledge docs" used={usage.knowledge} limit={billing.knowledgeDocuments} />
+        <LimitBar label="Staff users" used={usage.staff} limit={billing.staffUsers} />
+        <ConfigList items={[["Paddle automation", billing.provider === "paddle" ? "Prepared IDs saved" : "Deferred"], ["Manual billing", billing.status === "active" ? "Confirmed" : "Needs review"]]} />
+      </Panel>
+    </section>
   );
 }
 
+function AnalyticsPage() {
+  const [stats, setStats] = useState({ chats: 0, sessions: 0, appointments: 0, handoffs: 0, emergencies: 0, knowledge: 0 });
+  const [status, setStatus] = useState("Loading analytics…");
+
+  async function loadAnalytics() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    const [messages, sessions, appointments, handoffs, emergencies, knowledge] = await Promise.all([
+      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("handoff_requested", true),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("emergency_flag", true),
+      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
+    ]);
+    setStats({ chats: messages.count || 0, sessions: sessions.count || 0, appointments: appointments.count || 0, handoffs: handoffs.count || 0, emergencies: emergencies.count || 0, knowledge: knowledge.count || 0 });
+    setStatus("Clinic analytics loaded.");
+  }
+
+  useEffect(() => {
+    void loadAnalytics();
+    return subscribeWorkspaceSelection(() => void loadAnalytics());
+  }, []);
+
+  return <section className="content-grid three-col analytics-grid"><MetricCard label="Chat messages" value={String(stats.chats)} delta={status} tone="blue" /><MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Total patient conversations" tone="teal" /><MetricCard label="Appointments" value={String(stats.appointments)} delta="Booking requests" tone="green" /><MetricCard label="Handoffs" value={String(stats.handoffs)} delta="Human support needed" tone="amber" /><MetricCard label="Urgent flags" value={String(stats.emergencies)} delta="Emergency safety triggers" tone="red" /><MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved clinic sources" tone="blue" /></section>;
+}
+
 function SafetyPage() {
+  const [sessions, setSessions] = useState<ChatSessionRow[]>([]);
+  const [status, setStatus] = useState("Loading safety queue…");
+
+  async function loadSafetyQueue() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    const { data, error } = await supabase.from("chat_sessions").select("id,status,channel,last_message_at,created_at,handoff_requested,emergency_flag").eq("clinic_id", clinicId).or("handoff_requested.eq.true,emergency_flag.eq.true").order("created_at", { ascending: false });
+    if (error) return setStatus(`Safety queue failed: ${error.message}`);
+    setSessions((data || []).map((row: any) => ({ id: row.id, status: row.status, channel: row.channel, lastMessageAt: row.last_message_at, createdAt: row.created_at, handoffRequested: row.handoff_requested, emergencyFlag: row.emergency_flag })));
+    setStatus(`${data?.length || 0} safety case${data?.length === 1 ? "" : "s"} need review.`);
+  }
+
+  useEffect(() => {
+    void loadSafetyQueue();
+    return subscribeWorkspaceSelection(() => void loadSafetyQueue());
+  }, []);
+
+  async function resolveSession(session: ChatSessionRow) {
+    if (!supabase) return;
+    const { error } = await supabase.from("chat_sessions").update({ status: "closed", handoff_requested: false }).eq("id", session.id);
+    if (error) setStatus(`Resolve failed: ${error.message}`);
+    else await loadSafetyQueue();
+  }
+
   return (
-    <>
-      <PageHeader eyebrow="Safety" title="Escalation and human handoff controls" />
-      <section className="content-grid two-col">
-        <Panel title="Safety rules" subtitle="Healthcare-aware boundaries" icon={ShieldCheck}>
-          <SafetyStack />
-        </Panel>
-        <Panel title="Emergency response preview" subtitle="Shown when urgent symptoms are detected" icon={AlertTriangle}>
-          <div className="emergency-box">I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.</div>
-        </Panel>
-      </section>
-    </>
+    <section className="content-grid two-col">
+      <Panel title="Emergency + human handoff queue" subtitle={status} icon={ShieldCheck}>
+        <div className="chat-session-list">{sessions.length ? sessions.map((session) => <div className="chat-session-card" key={session.id}><div><strong>{formatChatSessionTitle(session)}</strong><span>{formatAppointmentTime(session.lastMessageAt || session.createdAt)}</span></div><div className="chat-session-badges">{session.emergencyFlag && <span className="badge red">Urgent</span>}{session.handoffRequested && <span className="badge amber">Handoff</span>}<button className="ghost-button" type="button" onClick={() => void resolveSession(session)}>Resolve</button></div></div>) : <p className="empty-state">No emergency or handoff cases right now.</p>}</div>
+      </Panel>
+      <Panel title="Emergency response preview" subtitle="Shown when urgent symptoms are detected" icon={AlertTriangle}>
+        <SafetyStack />
+        <div className="emergency-box">I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately. I can also flag this conversation for clinic staff handoff.</div>
+      </Panel>
+    </section>
   );
 }
 
@@ -1083,16 +1252,14 @@ function SafetyStack() {
   return <div className="safety-stack">{["No diagnosis", "No prescriptions", "Emergency guidance", "Human handoff", "Audit sensitive cases"].map((rule) => <div className="safety-rule" key={rule}><Check size={15} /><span>{rule}</span></div>)}</div>;
 }
 
-function WorkflowPreview() {
-  const nodes = [
-    { label: "Greeting", icon: MessageSquareText },
-    { label: "Intent", icon: BrainCircuit },
-    { label: "Book", icon: CalendarCheck },
-    { label: "Email", icon: Mail },
-    { label: "n8n", icon: Zap },
-    { label: "Handoff", icon: Users },
-  ];
-  return <div className="workflow-canvas">{nodes.map((node, index) => <div className="workflow-node" key={node.label}><node.icon size={16} /><span>{node.label}</span>{index < nodes.length - 1 && <ArrowRight className="node-arrow" size={15} />}</div>)}</div>;
+function WorkflowPreview({ nodes = ["Greeting", "Intent", "Book", "Email", "n8n", "Handoff"] }: { nodes?: string[] }) {
+  const icons = [MessageSquareText, BrainCircuit, CalendarCheck, Mail, Zap, Users];
+  return <div className="workflow-canvas">{nodes.map((label, index) => { const Icon = icons[index % icons.length]; return <div className="workflow-node" key={`${label}-${index}`}><Icon size={16} /><span>{label}</span>{index < nodes.length - 1 && <ArrowRight className="node-arrow" size={15} />}</div>; })}</div>;
+}
+
+function LimitBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  return <Bar label={label} value={`${used} / ${limit}`} width={String(percent)} />;
 }
 
 function Bar({ label, value, width }: { label: string; value: string; width: string }) {

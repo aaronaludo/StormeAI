@@ -32,6 +32,13 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   const citations = await retrieveKnowledge(input.clinicId, patientMessage);
   const emergency = isEmergency(patientMessage);
   const handoff = wantsHandoff(patientMessage);
+  const deterministicReply = answerCommonReceptionistQuestion(patientMessage, context);
+  if (deterministicReply) {
+    await insertMessage(input.clinicId, sessionId, "assistant", deterministicReply, citations, { mode: "rule", reason: "common_receptionist_question" });
+    await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
+    return { sessionId, reply: deterministicReply, mode: "rule", citations, receptionistName: context.name };
+  }
+
   const prompt = buildPrompt(context, citations);
 
   let reply = "";
@@ -54,7 +61,7 @@ export async function runReceptionistTurn(input: PublicChatInput) {
 async function loadReceptionist(clinicId: string, receptionistId?: string) {
   let query = supabase
     .from("ai_receptionists")
-    .select("id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,offer_appointment_when_relevant,emergency_handoff_enabled,human_handoff_enabled,settings,clinics(name,clinic_type,timezone)")
+    .select("id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,offer_appointment_when_relevant,emergency_handoff_enabled,human_handoff_enabled,settings,clinics(name,clinic_type,timezone,business_hours)")
     .eq("clinic_id", clinicId)
     .order("updated_at", { ascending: false })
     .limit(1);
@@ -88,6 +95,53 @@ async function retrieveKnowledge(clinicId: string, message: string) {
   if (orFilter) query = query.or(orFilter);
   const { data } = await query;
   return (data || []).filter((item: any) => item.content).map((item: any) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
+}
+
+function answerCommonReceptionistQuestion(message: string, context: any) {
+  const lower = message.toLowerCase();
+  const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
+  const settings = context.settings || {};
+  const receptionistName = context.name || "Mia";
+  const clinicName = clinic?.name || "the clinic";
+
+  if (["what's your name", "what is your name", "who are you", "your name"].some((term) => lower.includes(term))) {
+    return `I’m ${receptionistName}, the StormeAI chat receptionist for ${clinicName}. I can help with clinic questions, appointment requests, and staff handoff.`;
+  }
+
+  if (["clinic hours", "business hours", "open", "closing", "closed", "schedule"].some((term) => lower.includes(term))) {
+    const hours = settings.businessHours || formatBusinessHours(clinic?.business_hours);
+    return hours
+      ? `${clinicName} hours: ${hours}. If you want, I can also collect your preferred appointment date and time for staff confirmation.`
+      : `I don’t have confirmed clinic hours saved yet for ${clinicName}. I can collect your question and route it to clinic staff, or help request an appointment for staff confirmation.`;
+  }
+
+  if (wantsBooking(message)) {
+    return "I can help request an appointment. Please send the patient name, contact number or email, preferred service, and preferred date/time. Clinic staff will confirm availability.";
+  }
+
+  if (isEmergency(message)) {
+    return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
+  }
+
+  if (wantsHandoff(message)) {
+    return "Sure — I can flag this for clinic staff. Please share your name, contact number or email, and what you need help with.";
+  }
+
+  return null;
+}
+
+function formatBusinessHours(value: unknown) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value !== "object") return "";
+  const entries = Object.entries(value as Record<string, any>);
+  if (!entries.length) return "";
+  return entries.map(([day, hours]) => {
+    if (!hours) return "";
+    if (typeof hours === "string") return `${day}: ${hours}`;
+    if (hours.closed) return `${day}: closed`;
+    return `${day}: ${hours.open || hours.start || ""}${hours.close || hours.end ? `–${hours.close || hours.end}` : ""}`;
+  }).filter(Boolean).join("; ");
 }
 
 function buildPrompt(context: any, citations: Array<{ title?: string; content: string }>) {

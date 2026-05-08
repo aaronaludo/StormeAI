@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createClinicWorkspace } from "../lib/supabase";
 
 function slugify(value: string) {
@@ -6,6 +7,7 @@ function slugify(value: string) {
 }
 
 export function ClinicOnboardingPage() {
+  const navigate = useNavigate();
   const [name, setName] = useState("Storme Dental Clinic");
   const [clinicType, setClinicType] = useState("Dental Clinic");
   const [email, setEmail] = useState("hello@clinic.com");
@@ -18,9 +20,10 @@ export function ClinicOnboardingPage() {
     event.preventDefault();
     try {
       const clinic = await createClinicWorkspace({ name, slug, clinicType, email, city, country });
-      setStatus(`Created clinic workspace: ${clinic.name}`);
+      setStatus(`Created clinic workspace: ${clinic.name}. Opening dashboard…`);
+      navigate("/dashboard", { replace: true });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to create clinic workspace.");
+      setStatus(error instanceof Error ? error.message : "Failed to create clinic workspace. Please try again.");
     }
   }
 

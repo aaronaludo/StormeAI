@@ -18,38 +18,40 @@ export type ClinicOnboardingInput = {
   country: string;
 };
 
-export async function createClinicWorkspace(input: ClinicOnboardingInput) {
+export type ClinicWorkspace = { id: string; name: string; slug: string };
+
+export async function createClinicWorkspace(input: ClinicOnboardingInput): Promise<ClinicWorkspace> {
   if (!supabase) throw new Error("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   if (!userData.user) throw new Error("You must be signed in before creating a clinic workspace.");
 
-  const { data: clinic, error: clinicError } = await supabase
-    .from("clinics")
-    .insert({
-      name: input.name,
-      slug: input.slug,
+  const { data, error } = await supabase
+    .rpc("create_clinic_workspace", {
+      clinic_name: input.name,
+      clinic_slug: input.slug,
       clinic_type: input.clinicType,
-      email: input.email,
-      city: input.city,
-      country: input.country || "PH",
+      clinic_email: input.email,
+      clinic_city: input.city,
+      clinic_country: input.country || "PH",
     })
-    .select("id,name,slug")
     .single();
 
-  if (clinicError) throw clinicError;
+  if (error) throw new Error(formatSupabaseError(error.message));
+  if (!data) throw new Error("Clinic workspace was not returned after creation.");
 
-  const { error: memberError } = await supabase.from("clinic_members").insert({
-    clinic_id: clinic.id,
-    user_id: userData.user.id,
-    role: "owner",
-  });
+  return data as ClinicWorkspace;
+}
 
-  if (memberError) throw memberError;
+function formatSupabaseError(message: string) {
+  if (message.includes("duplicate key") && message.includes("clinics_slug_key")) {
+    return "That clinic slug is already taken. Try changing the clinic name or slug.";
+  }
 
-  await supabase.from("ai_receptionists").insert({ clinic_id: clinic.id, name: "Mia" });
-  await supabase.from("billing_subscriptions").insert({ clinic_id: clinic.id, billing_provider: "manual", subscription_status: "trial" });
+  if (message.includes("violates check constraint") && message.includes("clinics_slug_check")) {
+    return "Clinic slug can only use lowercase letters, numbers, and hyphens.";
+  }
 
-  return clinic;
+  return message;
 }

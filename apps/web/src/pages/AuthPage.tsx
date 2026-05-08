@@ -38,8 +38,8 @@ const authCopy: Record<AuthMode, { eyebrow: string; title: string; subtitle: str
 
 export function AuthPage({ mode }: AuthPageProps) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("owner@clinic.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState("Ready when you are.");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = authCopy[mode];

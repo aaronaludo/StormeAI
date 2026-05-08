@@ -375,45 +375,8 @@ function ClinicSwitcher() {
   );
 }
 
-function PageHeader({ eyebrow, title, action = "Configure" }: { eyebrow: string; title: string; action?: string }) {
-  const navigate = useNavigate();
-
-  function openConfigure() {
-    const actionRoutes: Record<string, string> = {
-      Configure: "/ai-receptionist",
-      "Add source": "/knowledge-base",
-      "New slot": "/appointments",
-      "Create flow": "/workflows",
-      "Record payment": "/billing",
-    };
-
-    navigate(actionRoutes[action] || "/ai-receptionist");
-  }
-
-  function openTestChat() {
-    const scrollToWidget = () => document.getElementById("patient-chat-widget")?.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    if (window.location.pathname !== "/dashboard") {
-      navigate("/dashboard");
-      window.setTimeout(scrollToWidget, 80);
-      return;
-    }
-
-    scrollToWidget();
-  }
-
-  return (
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-      </div>
-      <div className="topbar-actions">
-        <button className="ghost-button" type="button" onClick={openConfigure}><Settings2 size={17} />{action}</button>
-        <button className="primary-button" type="button" onClick={openTestChat}><MessageSquareText size={17} />Test chat</button>
-      </div>
-    </header>
-  );
+function PageHeader(_props: { eyebrow: string; title: string; action?: string }) {
+  return null;
 }
 
 function DashboardPage() {

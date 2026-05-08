@@ -24,11 +24,14 @@ import {
   Workflow,
   Zap,
 } from "lucide-react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
+import { supabase } from "./lib/supabase";
 
 type NavItem = {
   label: string;
@@ -101,13 +104,19 @@ const providerCards = [
 function App() {
   return (
     <BrowserRouter>
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main-panel">
-          <Routes>
+      <Routes>
+        <Route element={<PublicRoute />}>
+          <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
+          <Route path="/auth/sign-in" element={<AuthPage mode="sign-in" />} />
+          <Route path="/auth/sign-up" element={<AuthPage mode="sign-up" />} />
+          <Route path="/auth/forgot-password" element={<AuthPage mode="forgot-password" />} />
+          <Route path="/auth/update-password" element={<AuthPage mode="update-password" />} />
+        </Route>
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/auth" element={<AuthPage />} />
             <Route path="/onboarding" element={<ClinicOnboardingPage />} />
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
@@ -115,11 +124,81 @@ function App() {
             <Route path="/workflows" element={<WorkflowsPage />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/safety" element={<SafetyPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </main>
-      </div>
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </BrowserRouter>
+  );
+}
+
+function AppLayout() {
+  return (
+    <div className="app-shell">
+      <Sidebar />
+      <main className="main-panel">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+type AuthState = { loading: boolean; session: Session | null };
+
+function useAuthState(): AuthState {
+  const [authState, setAuthState] = useState<AuthState>({ loading: true, session: null });
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthState({ loading: false, session: null });
+      return;
+    }
+
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setAuthState({ loading: false, session: data.session });
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthState({ loading: false, session });
+    });
+
+    return () => {
+      mounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  return authState;
+}
+
+function ProtectedRoute() {
+  const location = useLocation();
+  const { loading, session } = useAuthState();
+
+  if (loading) return <RouteLoading label="Checking your clinic session…" />;
+  if (!session) return <Navigate to="/auth/sign-in" replace state={{ from: location.pathname }} />;
+
+  return <Outlet />;
+}
+
+function PublicRoute() {
+  const location = useLocation();
+  const { loading, session } = useAuthState();
+
+  if (loading) return <RouteLoading label="Loading secure auth…" />;
+  if (session && location.pathname !== "/auth/update-password") return <Navigate to="/dashboard" replace />;
+
+  return <Outlet />;
+}
+
+function RouteLoading({ label }: { label: string }) {
+  return (
+    <div className="route-loading">
+      <div className="brand-mark"><Sparkles size={22} /></div>
+      <p>{label}</p>
+    </div>
   );
 }
 

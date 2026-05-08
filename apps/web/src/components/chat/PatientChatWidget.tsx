@@ -10,20 +10,32 @@ type Message = {
   body: string;
 };
 
-const starterMessages: Message[] = [
-  {
-    id: "1",
-    sender: "assistant",
-    body: "Hi! I’m Mia, the clinic chat receptionist. Ask me a clinic question or request an appointment.",
-  },
-];
+type PatientChatWidgetProps = {
+  receptionistName?: string;
+};
 
-export function PatientChatWidget() {
+function starterMessagesFor(receptionistName: string): Message[] {
+  return [
+    {
+      id: "1",
+      sender: "assistant",
+      body: `Hi! I’m ${receptionistName}, the clinic chat receptionist. Ask me a clinic question or request an appointment.`,
+    },
+  ];
+}
+
+export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidgetProps) {
   const [state, setState] = useState<WidgetState>("live");
-  const [messages, setMessages] = useState<Message[]>(starterMessages);
+  const [messages, setMessages] = useState<Message[]>(() => starterMessagesFor(receptionistName));
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string>();
   const messageListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages(starterMessagesFor(receptionistName));
+    setSessionId(undefined);
+    setState("live");
+  }, [receptionistName]);
 
   useEffect(() => {
     messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" });
@@ -62,7 +74,7 @@ export function PatientChatWidget() {
     <section id="patient-chat-widget" className="patient-widget-shell" aria-label="StormeAI patient chat widget">
       <header className="patient-widget-header">
         <div className="widget-avatar"><Bot size={18} /></div>
-        <div><strong>Mia</strong><span>StormeAI receptionist · live test</span></div>
+        <div><strong>{receptionistName}</strong><span>StormeAI receptionist · live test</span></div>
         <span className={`widget-state ${state}`}>{state === "safe-fallback" ? "fallback" : state}</span>
       </header>
 

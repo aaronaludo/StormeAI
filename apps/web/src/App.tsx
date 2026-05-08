@@ -240,6 +240,9 @@ function FloatingPatientChat() {
     persistWorkspaceSelection({ clinicId, receptionistId });
   }
 
+  const selectedReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
+  const selectedReceptionistName = selectedReceptionist?.name || "Mia";
+
   return (
     <div className={`floating-chat-shell ${open ? "open" : ""}`}>
       {open && (
@@ -250,7 +253,7 @@ function FloatingPatientChat() {
               {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
             </select>
           </div>
-          <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} />
+          <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} receptionistName={selectedReceptionistName} />
         </div>
       )}
       <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">

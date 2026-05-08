@@ -112,10 +112,18 @@ function buildPrompt(context: any, citations: Array<{ title?: string; content: s
 
 type AiRequest = { provider: string; model?: string; messages: Array<{ role: string; content: string }>; temperature: number };
 async function createChatCompletion(request: AiRequest) {
-  const provider = request.provider || Deno.env.get("AI_DEFAULT_PROVIDER") || "openai";
+  const requestedProvider = request.provider || Deno.env.get("AI_DEFAULT_PROVIDER") || "openai";
+  const provider = normalizeProviderForEdge(requestedProvider);
   if (provider === "ollama") return ollamaChat(request);
   if (provider === "anthropic") return anthropicChat(request);
-  return openAiChat(request);
+  return openAiChat({ ...request, provider: "openai", model: request.model && requestedProvider === "openai" ? request.model : undefined });
+}
+
+function normalizeProviderForEdge(provider: string) {
+  if (provider !== "ollama") return provider;
+  const baseUrl = Deno.env.get("OLLAMA_BASE_URL") || "";
+  const isLocalOnly = !baseUrl || baseUrl.includes("127.0.0.1") || baseUrl.includes("localhost");
+  return isLocalOnly ? "openai" : "ollama";
 }
 
 async function ollamaChat(request: AiRequest) {
@@ -153,7 +161,7 @@ function safeFallback(message: string, citations: Array<{ content: string }>, pr
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
   if (wantsBooking(message)) return "I can help request an appointment. Please share the patient name, contact number or email, preferred service, and preferred date/time. Clinic staff will confirm availability.";
   if (citations.length) return `I found clinic-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
-  return providerError ? `I can’t reach the AI provider right now (${providerError}). I can still collect your concern and route it to clinic staff. What would you like help with?` : "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
+  return providerError ? "I can’t confirm that from approved clinic knowledge right now. I can still collect your concern and route it to clinic staff. What would you like help with?" : "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
 }
 function isEmergency(message: string) { return ["chest pain", "bleeding", "can't breathe", "cant breathe", "emergency", "urgent", "fainted", "severe pain"].some((term) => message.toLowerCase().includes(term)); }
 function wantsBooking(message: string) { return ["appointment", "book", "schedule", "reschedule", "cancel", "available", "slot"].some((term) => message.toLowerCase().includes(term)); }

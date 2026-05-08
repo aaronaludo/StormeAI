@@ -304,7 +304,7 @@ function Sidebar() {
   const { session } = useAuthState();
   const [dashboardClinicId, setDashboardClinicId] = useState(getWorkspaceSelection().clinicId || "");
 
-  useEffect(() => subscribeWorkspaceSelection((selection) => setDashboardClinicId(selection.clinicId || "")), []);
+  useEffect(() => subscribeWorkspaceSelection(() => setDashboardClinicId(getWorkspaceSelection().clinicId || "")), []);
 
   const dashboardPath = dashboardClinicId ? `/dashboard/${dashboardClinicId}` : "/dashboard";
 

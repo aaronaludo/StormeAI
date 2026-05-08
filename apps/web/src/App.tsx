@@ -36,7 +36,7 @@ import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 import { supabase } from "./lib/supabase";
 import { buildSettingsPromptPreview, createReceptionist, defaultReceptionistSettings, listReceptionists, loadReceptionistSettings, saveReceptionistSettings, type ReceptionistOption, type ReceptionistSettingsRecord } from "./lib/ai/receptionistSettings";
 import { listClinicWorkspaces, type ClinicWorkspaceOption } from "./lib/clinicWorkspaces";
-import { getWorkspaceSelection, setSelectedClinic, setSelectedReceptionist, subscribeWorkspaceSelection } from "./lib/workspaceSelection";
+import { getWorkspaceSelection, persistWorkspaceSelection, setSelectedClinic, setSelectedReceptionist, subscribeWorkspaceSelection } from "./lib/workspaceSelection";
 
 type NavItem = {
   label: string;
@@ -387,7 +387,7 @@ function ReceptionistPage() {
     const nextReceptionistId = preferredReceptionistId || getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
     if (nextReceptionistId) {
       setSelectedReceptionistId(nextReceptionistId);
-      setSelectedReceptionist(nextReceptionistId);
+      persistWorkspaceSelection({ clinicId, receptionistId: nextReceptionistId });
     }
     return nextReceptionistId;
   }
@@ -400,8 +400,7 @@ function ReceptionistPage() {
       setSettings(loaded);
       setSelectedClinicId(loaded.clinicId || "");
       setSelectedReceptionistId(loaded.receptionistId || "");
-      if (loaded.clinicId) setSelectedClinic(loaded.clinicId);
-      if (loaded.receptionistId) setSelectedReceptionist(loaded.receptionistId);
+      if (loaded.clinicId || loaded.receptionistId) persistWorkspaceSelection({ clinicId: loaded.clinicId, receptionistId: loaded.receptionistId });
       if (loaded.clinicId) await refreshReceptionists(loaded.clinicId, loaded.receptionistId);
       setStatus(`Loaded ${loaded.name} for ${loaded.clinicName || "your clinic"}.`);
     } catch (error) {
@@ -418,7 +417,7 @@ function ReceptionistPage() {
 
   async function switchReceptionist(receptionistId: string) {
     setSelectedReceptionistId(receptionistId);
-    setSelectedReceptionist(receptionistId);
+    persistWorkspaceSelection({ clinicId: selectedClinicId || undefined, receptionistId });
     setLoading(true);
     try {
       const loaded = await loadReceptionistSettings(selectedClinicId || undefined, receptionistId);

@@ -15,15 +15,41 @@ export function getWorkspaceSelection(): WorkspaceSelection {
 }
 
 export function setSelectedClinic(clinicId?: string) {
-  if (clinicId) localStorage.setItem(CLINIC_KEY, clinicId);
+  const current = getWorkspaceSelection();
+  const nextClinicId = clinicId || undefined;
+
+  if (current.clinicId === nextClinicId && !current.receptionistId) return;
+
+  if (nextClinicId) localStorage.setItem(CLINIC_KEY, nextClinicId);
   else localStorage.removeItem(CLINIC_KEY);
   localStorage.removeItem(RECEPTIONIST_KEY);
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
 }
 
 export function setSelectedReceptionist(receptionistId?: string) {
-  if (receptionistId) localStorage.setItem(RECEPTIONIST_KEY, receptionistId);
+  const current = getWorkspaceSelection();
+  const nextReceptionistId = receptionistId || undefined;
+
+  if (current.receptionistId === nextReceptionistId) return;
+
+  if (nextReceptionistId) localStorage.setItem(RECEPTIONIST_KEY, nextReceptionistId);
   else localStorage.removeItem(RECEPTIONIST_KEY);
+  window.dispatchEvent(new CustomEvent(EVENT_NAME));
+}
+
+export function persistWorkspaceSelection(selection: WorkspaceSelection) {
+  const current = getWorkspaceSelection();
+  const nextClinicId = selection.clinicId || undefined;
+  const nextReceptionistId = selection.receptionistId || undefined;
+
+  if (current.clinicId === nextClinicId && current.receptionistId === nextReceptionistId) return;
+
+  if (nextClinicId) localStorage.setItem(CLINIC_KEY, nextClinicId);
+  else localStorage.removeItem(CLINIC_KEY);
+
+  if (nextReceptionistId) localStorage.setItem(RECEPTIONIST_KEY, nextReceptionistId);
+  else localStorage.removeItem(RECEPTIONIST_KEY);
+
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
 }
 

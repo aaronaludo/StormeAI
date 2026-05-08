@@ -1,0 +1,17 @@
+{
+  "name": "stormeai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StormeAI - chat-only AI receptionist SaaS for clinics.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mcp:build": "npm run build -w @stormeai/mcp-stormeai",
+    "mcp:start": "npm run start -w @stormeai/mcp-stormeai"
+  }
+}

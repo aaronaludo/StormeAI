@@ -9,6 +9,7 @@ Use official/community MCP servers where they exist:
 - GitHub: official GitHub MCP server
 - Supabase: Supabase MCP server
 - n8n: n8n MCP server if available for your n8n version
+- Figma: Figma MCP server for inspecting design files and components
 
 Use the local StormeAI MCP bridge for app-specific integration helpers:
 
@@ -17,6 +18,13 @@ Use the local StormeAI MCP bridge for app-specific integration helpers:
 - Paddle products/prices
 - n8n webhook triggering
 - Supabase Edge Function invocation
+
+Use Figma MCP/API for design-to-frontend work:
+
+- inspect frames
+- read component names
+- map design tokens
+- translate Figma layouts into React components
 
 ## Config template
 

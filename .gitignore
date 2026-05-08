@@ -28,3 +28,6 @@ pnpm-debug.log*
 .env.example
 # TypeScript build info
 *.tsbuildinfo
+
+# Supabase local/link metadata
+supabase/.temp/

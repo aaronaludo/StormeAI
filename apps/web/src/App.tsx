@@ -25,7 +25,7 @@ import {
   Workflow,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
@@ -99,6 +99,25 @@ const appointmentRows = [
   { patient: "Ana Reyes", service: "Lab Test", time: "Monday · 8:00 AM", status: "Prep sent" },
   { patient: "Carlo Dela Cruz", service: "Dental Consultation", time: "Reschedule requested", status: "Review" },
 ];
+
+type KnowledgeDocument = {
+  id: string;
+  title: string;
+  sourceType: string;
+  content: string;
+  status: string;
+  updatedAt?: string;
+};
+
+type AppointmentInboxRow = {
+  id: string;
+  patientName: string;
+  patientContact: string;
+  service: string;
+  time: string;
+  status: string;
+  note: string;
+};
 
 const providerCards = [
   { name: "Ollama", model: "qwen2.5:7b", tag: "Default local", active: true },
@@ -586,17 +605,113 @@ function TinySafetyChecklist() {
 }
 
 function KnowledgeBasePage() {
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("Loading clinic knowledge…");
+  const [form, setForm] = useState({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+
+  async function loadDocuments() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) {
+      setDocuments([]);
+      setLoading(false);
+      setStatus("Choose or create a clinic first.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("knowledge_documents")
+      .select("id,title,source_type,content,status,updated_at")
+      .eq("clinic_id", clinicId)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      setStatus(`Failed to load knowledge: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    setDocuments((data || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      sourceType: row.source_type,
+      content: row.content || "",
+      status: row.status,
+      updatedAt: row.updated_at,
+    })));
+    setStatus(`${data?.length || 0} source${data?.length === 1 ? "" : "s"} ready for receptionist answers.`);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void loadDocuments();
+    return subscribeWorkspaceSelection(() => void loadDocuments());
+  }, []);
+
+  async function addDocument(event: FormEvent) {
+    event.preventDefault();
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic before adding knowledge.");
+    if (!form.title.trim() || !form.content.trim()) return setStatus("Title and content are required.");
+
+    setSaving(true);
+    const { error } = await supabase.from("knowledge_documents").insert({
+      clinic_id: clinicId,
+      title: form.title.trim(),
+      source_type: form.sourceType,
+      content: form.content.trim(),
+      source_url: form.sourceUrl.trim() || null,
+      status: "approved",
+    });
+
+    if (error) setStatus(`Add source failed: ${error.message}`);
+    else {
+      setForm({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+      setStatus("Knowledge source added and approved.");
+      await loadDocuments();
+    }
+    setSaving(false);
+  }
+
+  async function updateDocumentStatus(id: string, nextStatus: string) {
+    if (!supabase) return;
+    const { error } = await supabase.from("knowledge_documents").update({ status: nextStatus }).eq("id", id);
+    if (error) setStatus(`Update failed: ${error.message}`);
+    else await loadDocuments();
+  }
+
   return (
     <>
       <PageHeader eyebrow="Knowledge Base" title="Clinic-approved RAG sources" action="Add source" />
       <section className="content-grid two-one">
-        <Panel title="Indexed sources" subtitle="FAQs, documents, services, and policies" icon={DatabaseZap}>
-          <div className="source-list">
-            {knowledgeSources.map((source) => <SourceRow key={source.title} {...source} />)}
+        <Panel title="Indexed sources" subtitle={status} icon={DatabaseZap}>
+          <form className="kb-form" onSubmit={addDocument}>
+            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Source title, e.g. Dental cleaning pricing" />
+            <select value={form.sourceType} onChange={(event) => setForm({ ...form, sourceType: event.target.value })}>
+              <option value="faq">FAQ</option>
+              <option value="service">Service</option>
+              <option value="policy">Policy</option>
+              <option value="document">Document</option>
+              <option value="website">Website</option>
+              <option value="note">Note</option>
+            </select>
+            <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved clinic answer/content here…" />
+            <input value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} placeholder="Optional source URL" />
+            <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : "Add approved source"}</button>
+          </form>
+          <div className="source-list live-list">
+            {loading ? <p className="empty-state">Loading knowledge…</p> : documents.length ? documents.map((source) => (
+              <div className="source-row rich-row" key={source.id}>
+                <div><strong>{source.title}</strong><span>{source.sourceType} · {source.content.slice(0, 120)}{source.content.length > 120 ? "…" : ""}</span></div>
+                <div className="row-actions"><span className={`badge ${source.status === "approved" || source.status === "indexed" ? "green" : "amber"}`}>{source.status}</span><button type="button" onClick={() => updateDocumentStatus(source.id, source.status === "approved" ? "draft" : "approved")}>{source.status === "approved" ? "Draft" : "Approve"}</button></div>
+              </div>
+            )) : <p className="empty-state">No knowledge yet. Add the clinic’s approved FAQs, policies, services, and prices.</p>}
           </div>
         </Panel>
         <Panel title="RAG configuration" subtitle="Control how answers are generated" icon={FileText}>
-          <ConfigList items={[["Answer mode", "Approved sources only"], ["Chunk strategy", "Service + FAQ optimized"], ["Similarity threshold", "0.78"], ["Knowledge gaps", "Auto-detect enabled"]]} />
+          <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active clinic knowledge"], ["Knowledge gaps", "Escalate to human handoff"]]} />
         </Panel>
       </section>
     </>
@@ -604,15 +719,115 @@ function KnowledgeBasePage() {
 }
 
 function AppointmentsPage() {
+  const [appointments, setAppointments] = useState<AppointmentInboxRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("Loading appointments…");
+  const [form, setForm] = useState({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
+
+  async function loadAppointments() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) {
+      setAppointments([]);
+      setLoading(false);
+      setStatus("Choose or create a clinic first.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("id,status,requested_start_at,scheduled_start_at,patient_note,staff_note,source,patients(full_name,email,phone),services(name)")
+      .eq("clinic_id", clinicId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setStatus(`Failed to load appointments: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    setAppointments((data || []).map((row: any) => ({
+      id: row.id,
+      patientName: row.patients?.full_name || "Unknown patient",
+      patientContact: row.patients?.phone || row.patients?.email || "No contact yet",
+      service: row.services?.name || row.patient_note?.split("\n")[0]?.replace("Service: ", "") || "Service request",
+      time: formatAppointmentTime(row.scheduled_start_at || row.requested_start_at),
+      status: row.status,
+      note: row.staff_note || row.patient_note || "",
+    })));
+    setStatus(`${data?.length || 0} appointment request${data?.length === 1 ? "" : "s"}.`);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void loadAppointments();
+    return subscribeWorkspaceSelection(() => void loadAppointments());
+  }, []);
+
+  async function createAppointment(event: FormEvent) {
+    event.preventDefault();
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic before creating appointments.");
+    if (!form.patientName.trim() || !form.service.trim()) return setStatus("Patient name and service are required.");
+
+    setSaving(true);
+    const contact = form.contact.trim();
+    const { data: patient, error: patientError } = await supabase.from("patients").insert({
+      clinic_id: clinicId,
+      full_name: form.patientName.trim(),
+      email: contact.includes("@") ? contact : null,
+      phone: contact && !contact.includes("@") ? contact : null,
+    }).select("id").single();
+
+    if (patientError) {
+      setStatus(`Patient create failed: ${patientError.message}`);
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await supabase.from("appointments").insert({
+      clinic_id: clinicId,
+      patient_id: patient.id,
+      status: "requested",
+      requested_start_at: form.requestedAt ? new Date(form.requestedAt).toISOString() : null,
+      patient_note: [`Service: ${form.service.trim()}`, form.note.trim()].filter(Boolean).join("\n"),
+      source: "admin",
+    });
+
+    if (error) setStatus(`Appointment create failed: ${error.message}`);
+    else {
+      setForm({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
+      setStatus("Appointment request created.");
+      await loadAppointments();
+    }
+    setSaving(false);
+  }
+
+  async function updateAppointmentStatus(id: string, nextStatus: string) {
+    if (!supabase) return;
+    const { error } = await supabase.from("appointments").update({ status: nextStatus }).eq("id", id);
+    if (error) setStatus(`Status update failed: ${error.message}`);
+    else await loadAppointments();
+  }
+
   return (
     <>
       <PageHeader eyebrow="Appointments" title="Booking requests and schedule control" action="New slot" />
       <section className="content-grid two-one">
-        <Panel title="Appointment inbox" subtitle="Requests, confirmations, and reschedules" icon={CalendarCheck}>
-          <AppointmentTable />
+        <Panel title="Appointment inbox" subtitle={status} icon={CalendarCheck}>
+          <form className="appointment-form" onSubmit={createAppointment}>
+            <input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Patient name" />
+            <input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="Phone or email" />
+            <input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Service requested" />
+            <input type="datetime-local" value={form.requestedAt} onChange={(event) => setForm({ ...form, requestedAt: event.target.value })} />
+            <textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional patient/staff note" />
+            <button className="primary-button" disabled={saving} type="submit">{saving ? "Creating…" : "Create request"}</button>
+          </form>
+          <AppointmentTable rows={appointments} loading={loading} onStatusChange={updateAppointmentStatus} />
         </Panel>
         <Panel title="Scheduling rules" subtitle="How the AI collects bookings" icon={ClipboardList}>
-          <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Resend email + n8n event"]]} />
+          <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Manual now · n8n-ready"]]} />
         </Panel>
       </section>
     </>
@@ -725,8 +940,16 @@ function SourceRow(source: { title: string; meta: string; status: string }) {
   return <div className="source-row"><div><strong>{source.title}</strong><span>{source.meta}</span></div><span className={`badge ${source.status === "Review" ? "amber" : "green"}`}>{source.status}</span></div>;
 }
 
-function AppointmentTable() {
-  return <div className="appointment-table">{appointmentRows.map((row) => <div className="appointment-row" key={row.patient}><div><strong>{row.patient}</strong><span>{row.service}</span></div><span>{row.time}</span><span className={`badge ${row.status === "Confirmed" ? "green" : row.status === "Requested" || row.status === "Review" ? "amber" : "blue"}`}>{row.status}</span></div>)}</div>;
+function formatAppointmentTime(value?: string | null) {
+  if (!value) return "No preferred time";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function AppointmentTable({ rows, loading, onStatusChange }: { rows: AppointmentInboxRow[]; loading: boolean; onStatusChange: (id: string, status: string) => void }) {
+  if (loading) return <p className="empty-state">Loading appointments…</p>;
+  if (!rows.length) return <p className="empty-state">No appointment requests yet. Create one manually or let the Test Chat collect booking details.</p>;
+
+  return <div className="appointment-table live-list">{rows.map((row) => <div className="appointment-row rich-row" key={row.id}><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div><span>{row.time}</span><select value={row.status} onChange={(event) => onStatusChange(row.id, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></div>)}</div>;
 }
 
 function SafetyStack() {

@@ -54,7 +54,7 @@ type Metric = {
 const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Chats", path: "/chats", icon: MessageSquareText },
-  { label: "Onboarding", path: "/onboarding", icon: ClipboardList },
+  { label: "Clinics", path: "/clinics", icon: ClipboardList },
   { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "/appointments", icon: CalendarCheck },
@@ -160,7 +160,7 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/chats" element={<ChatsPage />} />
-            <Route path="/onboarding" element={<ClinicOnboardingPage />} />
+            <Route path="/clinics" element={<ClinicOnboardingPage />} />
             <Route path="/ai-receptionist" element={<ReceptionistPage />} />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
@@ -171,6 +171,7 @@ function App() {
           </Route>
         </Route>
 
+        <Route path="/onboarding" element={<Navigate to="/clinics" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

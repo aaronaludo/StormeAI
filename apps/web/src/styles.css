@@ -1218,3 +1218,23 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
   .chat-session-badges { justify-content: flex-start; }
   .transcript-message { max-width: 100%; }
 }
+
+.clinics-page { margin-top: 0; }
+.clinic-list { display: grid; gap: 12px; }
+.clinic-management-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+.clinic-management-row.active { border-color: #93c5fd; background: #eff6ff; }
+.clinic-management-row strong { display: block; font-size: 15px; }
+.clinic-management-row span { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 800; }
+.row-actions .danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
+@media (max-width: 720px) {
+  .clinic-management-row { display: grid; }
+}

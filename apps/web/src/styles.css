@@ -1238,3 +1238,115 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 @media (max-width: 720px) {
   .clinic-management-row { display: grid; }
 }
+
+/* Button design system polish */
+button,
+.primary-button,
+.ghost-button,
+.row-actions button,
+.source-row button,
+.chat-session-card,
+.day-chip-grid button,
+.widget-quick-actions button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease, color .16s ease, opacity .16s ease;
+}
+.primary-button,
+.ghost-button,
+.row-actions button,
+.source-row button {
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 0 15px;
+  font-weight: 950;
+  letter-spacing: -.02em;
+  border: 1px solid transparent;
+}
+.primary-button {
+  color: #fff;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,.26), transparent 30%),
+    linear-gradient(135deg, #2563eb 0%, #1d4ed8 46%, #14b8a6 120%);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, .26), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.primary-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(37, 99, 235, .34), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.primary-button:active { transform: translateY(0); box-shadow: 0 10px 24px rgba(37, 99, 235, .24); }
+.ghost-button,
+.row-actions button,
+.source-row button {
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-color: rgba(148, 163, 184, .28);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .05), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.ghost-button:hover,
+.row-actions button:hover,
+.source-row button:hover {
+  transform: translateY(-1px);
+  color: #1e40af;
+  border-color: rgba(37, 99, 235, .28);
+  background: linear-gradient(180deg, #ffffff, #eff6ff);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, .11), inset 0 1px 0 rgba(255,255,255,.95);
+}
+.ghost-button:active,
+.row-actions button:active,
+.source-row button:active { transform: translateY(0); box-shadow: 0 6px 16px rgba(15, 23, 42, .06); }
+.row-actions .danger,
+button.danger {
+  color: #dc2626;
+  border-color: rgba(248, 113, 113, .32);
+  background: linear-gradient(180deg, #fff, #fff5f5);
+  box-shadow: 0 8px 22px rgba(220, 38, 38, .06), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.row-actions .danger:hover,
+button.danger:hover {
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, .38);
+  background: linear-gradient(180deg, #fff7f7, #fee2e2);
+  box-shadow: 0 12px 30px rgba(220, 38, 38, .12), inset 0 1px 0 rgba(255,255,255,.95);
+}
+button:focus-visible,
+.primary-button:focus-visible,
+.ghost-button:focus-visible,
+.row-actions button:focus-visible,
+.source-row button:focus-visible,
+.widget-quick-actions button:focus-visible,
+.day-chip-grid button:focus-visible,
+.floating-chat-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .16), 0 12px 30px rgba(37, 99, 235, .12);
+}
+button:disabled,
+.primary-button:disabled,
+.ghost-button:disabled {
+  opacity: .56;
+  transform: none !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+.widget-quick-actions button {
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  border-color: rgba(148, 163, 184, .28);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .04);
+}
+.widget-quick-actions button:hover { transform: translateY(-1px); background: #eff6ff; border-color: #bfdbfe; }
+.widget-input-row button {
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 10px 24px rgba(37,99,235,.22);
+}
+.widget-input-row button:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(37,99,235,.3); }
+.floating-chat-button {
+  border: 1px solid rgba(255,255,255,.35);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,.28), transparent 32%),
+    linear-gradient(135deg, #2563eb, #14b8a6);
+}
+@media (max-width: 560px) {
+  .primary-button,
+  .ghost-button,
+  .row-actions button,
+  .source-row button { min-height: 40px; padding: 0 13px; font-size: 13px; }
+}

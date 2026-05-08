@@ -34,7 +34,7 @@ export function PatientChatWidget() {
   }
 
   return (
-    <section className="patient-widget-shell" aria-label="StormeAI patient chat widget">
+    <section id="patient-chat-widget" className="patient-widget-shell" aria-label="StormeAI patient chat widget">
       <header className="patient-widget-header">
         <div className="widget-avatar"><Bot size={18} /></div>
         <div><strong>Mia</strong><span>StormeAI receptionist</span></div>

@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { AuthPage } from "./pages/AuthPage";
 import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
 
@@ -182,7 +183,7 @@ function DashboardPage() {
               <button className="ghost-button">View patient widget</button>
             </div>
           </div>
-          <ChatPreview />
+          <PatientChatWidget />
         </div>
         <HealthCard />
       </section>

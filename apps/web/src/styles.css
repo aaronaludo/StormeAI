@@ -4846,3 +4846,320 @@ body.sidebar-resizing {
   display: grid;
   place-items: center;
 }
+
+/* Clinic list avatar uses centered clinic/building icon */
+.clinic-table-avatar {
+  display: grid !important;
+  place-items: center !important;
+  font-size: 0;
+  overflow: hidden;
+}
+.clinic-table-avatar svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.4;
+}
+
+/* Clinic list icon color */
+.clinic-table-avatar svg {
+  color: #fff;
+  stroke: currentColor;
+}
+
+/* Appointment page patient avatar uses person icon */
+.appointments-patient-avatar {
+  display: grid !important;
+  place-items: center !important;
+  font-size: 0;
+  color: #fff;
+}
+.appointments-patient-avatar svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+
+/* Force Appointment patient person icon to white */
+.appointments-patient-avatar,
+.appointments-patient-avatar svg {
+  color: #fff !important;
+}
+.appointments-patient-avatar svg,
+.appointments-patient-avatar svg * {
+  stroke: #fff !important;
+}
+
+/* Marketing page patient avatar uses white person icon */
+.marketing-patient-avatar-modern {
+  display: grid !important;
+  place-items: center !important;
+  font-size: 0;
+  color: #fff !important;
+}
+.marketing-patient-avatar-modern svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  color: #fff !important;
+  stroke: #fff !important;
+  stroke-width: 2.4;
+}
+.marketing-patient-avatar-modern svg * {
+  stroke: #fff !important;
+}
+
+/* Integrations page icons: centered and white */
+.integrations-hero-icon,
+.integrations-channel-avatar,
+.integrations-config-icon {
+  display: grid !important;
+  place-items: center !important;
+  color: #fff !important;
+  font-size: 0;
+  overflow: hidden;
+}
+.integrations-hero-icon svg,
+.integrations-channel-avatar svg,
+.integrations-config-icon svg {
+  display: block;
+  color: #fff !important;
+  stroke: #fff !important;
+  stroke-width: 2.4;
+}
+.integrations-hero-icon svg {
+  width: 36px;
+  height: 36px;
+}
+.integrations-channel-avatar svg,
+.integrations-config-icon svg {
+  width: 26px;
+  height: 26px;
+}
+.integrations-hero-icon svg *,
+.integrations-channel-avatar svg *,
+.integrations-config-icon svg * {
+  stroke: #fff !important;
+}
+
+/* Refined floating Test/Close chat CTA */
+.floating-chat-button {
+  position: relative;
+  isolation: isolate;
+  min-height: 62px;
+  padding: 0 26px 0 20px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 999px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,0) 32%) padding-box,
+    linear-gradient(135deg, #2f6df2 0%, #129fd0 48%, #11b8a8 100%) border-box;
+  box-shadow:
+    0 18px 42px rgba(37,99,235,.26),
+    0 8px 18px rgba(20,184,166,.16),
+    inset 0 1px 0 rgba(255,255,255,.35);
+  backdrop-filter: blur(12px);
+  gap: 14px;
+  font-size: 18px;
+  letter-spacing: -.025em;
+  overflow: hidden;
+  transform: translateZ(0);
+  animation: floatingButtonSoft 4.8s ease-in-out infinite;
+  transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
+}
+.floating-chat-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 20% 0%, rgba(255,255,255,.34), transparent 35%);
+  opacity: .9;
+  z-index: -1;
+}
+.floating-chat-button::after {
+  content: "";
+  position: absolute;
+  top: -45%;
+  bottom: -45%;
+  left: -40%;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent);
+  transform: rotate(18deg) translateX(-120%);
+  transition: transform .65s ease;
+}
+.floating-chat-button:hover {
+  transform: translateY(-3px) scale(1.015);
+  filter: saturate(1.08);
+  box-shadow:
+    0 24px 56px rgba(37,99,235,.32),
+    0 12px 24px rgba(20,184,166,.18),
+    inset 0 1px 0 rgba(255,255,255,.42);
+}
+.floating-chat-button:hover::after {
+  transform: rotate(18deg) translateX(520%);
+}
+.floating-chat-button svg {
+  width: 28px;
+  height: 28px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.13);
+  filter: drop-shadow(0 4px 8px rgba(15,23,42,.16));
+}
+.floating-chat-button span {
+  text-shadow: 0 2px 8px rgba(15,23,42,.16);
+}
+@keyframes floatingButtonSoft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@media (max-width: 720px) {
+  .floating-chat-button {
+    width: 60px;
+    height: 60px;
+    min-height: 60px;
+    padding: 0;
+    gap: 0;
+  }
+  .floating-chat-button svg {
+    width: 30px;
+    height: 30px;
+    padding: 3px;
+  }
+}
+
+/* Animated Dashboard clinic readiness ring */
+@property --ready-progress {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.readiness-ring {
+  --ready-progress: 0%;
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 56%, transparent 57%),
+    conic-gradient(from -90deg, #2563eb 0 var(--ready-progress), #14b8a6 var(--ready-progress) calc(var(--ready-progress) + 10%), #e2e8f0 0);
+  box-shadow:
+    0 22px 48px rgba(37, 99, 235, .14),
+    inset 0 1px 0 rgba(255,255,255,.9);
+  animation: readinessSweep 1.35s cubic-bezier(.22, 1, .36, 1) forwards, readinessBreath 3.8s ease-in-out 1.35s infinite;
+  overflow: hidden;
+}
+.readiness-ring::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  background: conic-gradient(from -90deg, rgba(37,99,235,.32), rgba(20,184,166,.28), transparent 38%, transparent);
+  filter: blur(12px);
+  opacity: .75;
+  animation: readinessGlowSpin 5.5s linear infinite;
+}
+.readiness-ring::after {
+  background:
+    radial-gradient(circle at 35% 20%, rgba(239,246,255,.95), #fff 48%),
+    #fff;
+}
+.readiness-ring strong {
+  animation: readinessNumberPop .7s cubic-bezier(.22, 1, .36, 1) both;
+}
+.readiness-ring span {
+  animation: readinessFadeUp .7s cubic-bezier(.22, 1, .36, 1) .08s both;
+}
+@keyframes readinessSweep {
+  from { --ready-progress: 0%; }
+  to { --ready-progress: var(--score); }
+}
+@keyframes readinessBreath {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.015); }
+}
+@keyframes readinessGlowSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes readinessNumberPop {
+  from { opacity: 0; transform: translateY(8px) scale(.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes readinessFadeUp {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .readiness-ring,
+  .readiness-ring::before,
+  .readiness-ring strong,
+  .readiness-ring span {
+    animation: none !important;
+  }
+  .readiness-ring { --ready-progress: var(--score); }
+}
+
+/* Fix Clinic Readiness ring so 100% renders as a complete progress circle */
+.readiness-ring {
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 56%, transparent 57%),
+    conic-gradient(from -90deg, #2563eb 0%, #14b8a6 var(--ready-progress), #e2e8f0 var(--ready-progress) 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .readiness-ring { --ready-progress: var(--score); }
+}
+
+/* Reliable SVG readiness animation: fills from 0 to the actual score */
+.readiness-ring {
+  background:
+    radial-gradient(circle at 35% 20%, rgba(239,246,255,.95), #fff 48%);
+}
+.readiness-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  z-index: 1;
+  overflow: visible;
+}
+.readiness-ring-track,
+.readiness-ring-progress {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+.readiness-ring-track {
+  stroke: #e2e8f0;
+}
+.readiness-ring-progress {
+  stroke: url(#readinessGradient);
+  stroke: #14b8a6;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: readinessStrokeFill 1.45s cubic-bezier(.22, 1, .36, 1) forwards;
+  filter: drop-shadow(0 8px 14px rgba(20,184,166,.22));
+}
+.readiness-ring strong,
+.readiness-ring span {
+  z-index: 2;
+}
+@keyframes readinessStrokeFill {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: calc(100 - var(--score)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .readiness-ring-progress {
+    animation: none !important;
+    stroke-dashoffset: calc(100 - var(--score));
+  }
+}
+
+/* Keep SVG progress visible while preserving the clean inner cutout */
+.readiness-ring svg { z-index: 0; }
+.readiness-ring::before { z-index: 0; pointer-events: none; }
+.readiness-ring::after {
+  inset: 29px;
+  z-index: 1;
+  pointer-events: none;
+}
+.readiness-ring strong,
+.readiness-ring span { z-index: 2; }

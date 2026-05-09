@@ -333,7 +333,7 @@ function FloatingPatientChat() {
       )}
       <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">
         <MessageSquareText size={22} />
-        <span>{open ? "Close chat" : "Test chat"}</span>
+        <span>{open ? "Hide preview" : "AI Receptionist preview"}</span>
       </button>
     </div>
   );
@@ -532,7 +532,24 @@ function DashboardPage() {
 
   const activeClinicId = clinicId || getWorkspaceSelection().clinicId || "";
   const healthScore = Math.min(100, Math.round(((stats.knowledge ? 30 : 0) + (stats.receptionistCount ? 25 : 0) + (stats.appointments ? 25 : 0) + (stats.sessions ? 20 : 0))));
+  const [animatedHealthScore, setAnimatedHealthScore] = useState(0);
   const conversionRate = stats.sessions ? Math.round((stats.appointments / stats.sessions) * 100) : 0;
+
+  useEffect(() => {
+    let frame = 0;
+    let start: number | null = null;
+    const duration = 1450;
+    const tick = (timestamp: number) => {
+      if (start === null) start = timestamp;
+      const progress = Math.min(1, (timestamp - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setAnimatedHealthScore(Math.round(healthScore * eased));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    setAnimatedHealthScore(0);
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [healthScore, activeClinicId]);
 
   return (
     <>
@@ -549,7 +566,13 @@ function DashboardPage() {
           </div>
         </div>
         <Panel title="Clinic readiness" subtitle={status} icon={ShieldCheck}>
-          <div className="readiness-ring" style={{ "--score": `${healthScore}%` } as React.CSSProperties}><strong>{healthScore}%</strong><span>ready</span></div>
+          <div className="readiness-ring" style={{ "--score": String(healthScore) } as React.CSSProperties}>
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle className="readiness-ring-track" cx="60" cy="60" r="48" pathLength="100" />
+              <circle className="readiness-ring-progress" cx="60" cy="60" r="48" pathLength="100" />
+            </svg>
+            <strong>{animatedHealthScore}%</strong><span>ready</span>
+          </div>
           <ConfigList items={[["AI receptionists", String(stats.receptionistCount)], ["Knowledge sources", String(stats.knowledge)], ["Marketing contacts", String(stats.marketingContacts)], ["Booking conversion", `${conversionRate}%`]]} />
         </Panel>
       </section>
@@ -1232,7 +1255,6 @@ function KnowledgeBasePage() {
           <div className="knowledge-directory-controls">
             <label className="knowledge-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, type, status, content…" /></label>
             <label className="knowledge-directory-filter">Filter<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">All sources</option><option value="approved">Approved</option><option value="indexed">Indexed</option><option value="draft">Draft</option><option value="faq">FAQ</option><option value="service">Service</option><option value="policy">Policy</option><option value="document">Document</option><option value="website">Website</option><option value="note">Note</option></select></label>
-            <button className="primary-button" type="button" onClick={openAddSource}><Plus size={16} /> New source</button>
           </div>
           <div className="knowledge-table-head"><span>Source</span><span>Type</span><span>Status</span><span>Actions</span></div>
           {loading ? <p className="empty-state knowledge-table-empty">Loading knowledge…</p> : !filteredDocuments.length ? <p className="empty-state knowledge-table-empty">No knowledge source matched your filters.</p> : filteredDocuments.map((source) => (
@@ -1597,7 +1619,6 @@ function AppointmentsPage() {
           <div className="appointments-directory-controls">
             <label className="appointments-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search patient, service, contact, note…" /></label>
             <label className="appointments-directory-filter">Filter<select value={appointmentFilter} onChange={(event) => setAppointmentFilter(event.target.value)}><option value="all">All appointments</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></label>
-            <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={16} /> New request</button>
           </div>
           <AppointmentTable rows={filteredAppointments} loading={loading} onStatusChange={updateAppointmentStatus} />
         </div>
@@ -1823,7 +1844,6 @@ function MarketingPage() {
           <div className="marketing-directory-controls-modern">
             <label className="marketing-directory-search-modern"><Search size={17} /><input value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search patient, email, service…" /></label>
             <label className="marketing-directory-filter-modern">Filter<select value={patientFilter} onChange={(event) => setPatientFilter(event.target.value)}><option value="all">All contacts</option><option value="selected">Selected</option><option value="email">Has email</option></select></label>
-            <button className="primary-button" type="button" disabled={!contacts.length} onClick={() => setComposerOpen(true)}><Plus size={16} /> New campaign</button>
           </div>
           <div className="marketing-selection-bar-modern">
             <span>{selectedIds.length} selected · {selectedEmailContacts.length} email-ready</span>
@@ -1832,7 +1852,7 @@ function MarketingPage() {
           <div className="marketing-table-head-modern"><span>Patient</span><span>Reach</span><span>History</span><span>Select</span></div>
           {loading ? <p className="empty-state marketing-table-empty-modern">Loading patients…</p> : searchedContacts.length ? searchedContacts.map((contact) => (
             <label className="marketing-table-row-modern" key={contact.id}>
-              <div className="marketing-table-patient-modern"><span className="marketing-patient-avatar-modern">{contact.name.slice(0, 1).toUpperCase()}</span><div><strong>{contact.name}</strong><span>{contact.lastService}</span></div></div>
+              <div className="marketing-table-patient-modern"><span className="marketing-patient-avatar-modern"><UserRound size={26} /></span><div><strong>{contact.name}</strong><span>{contact.lastService}</span></div></div>
               <div className="marketing-table-reach-modern"><span>{contact.email || "No email"}</span></div>
               <div className="marketing-table-history-modern"><strong>{contact.appointmentCount}</strong><span>{formatAppointmentTime(contact.lastVisit)}</span></div>
               <div className="marketing-table-check-modern"><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={() => toggleContact(contact.id)} /></div>
@@ -2029,6 +2049,7 @@ function IntegrationsPage() {
             <div className="integrations-table-setup"><span>Clinic: {clinicId}</span><span>Receptionist: {activeWidgetReceptionist?.name || receptionistId}</span></div>
             <div className="integrations-table-actions"><button className={scriptCopied ? "copied" : ""} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied" : "Copy script"}</button></div>
           </div>
+
         </div>
 
         <aside className="integrations-config-card">
@@ -2038,13 +2059,7 @@ function IntegrationsPage() {
         </aside>
       </section>
 
-      <section className="integration-script-card">
-        <div className="integration-script-heading">
-          <div><p className="eyebrow">Embed script</p><h2>Paste before closing body tag</h2><span>Script is generated for {activeWidgetReceptionist?.name || "the selected AI receptionist"}.</span></div>
-          <button className={`primary-button copy-script-button ${scriptCopied ? "copied" : ""}`} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied!" : "Copy script"}</button>
-        </div>
-        <div className={`embed-code-box modern ${scriptCopied ? "copied" : ""}`}><pre>{snippet}</pre>{scriptCopied && <span className="copy-success-pop">Copied to clipboard</span>}</div>
-      </section>
+
     </section>
   );
 }
@@ -2099,7 +2114,7 @@ function AppointmentTable({ rows, loading, onStatusChange }: { rows: Appointment
       <div className="appointments-table-head"><span>Patient</span><span>Schedule</span><span>Status</span><span>Update</span></div>
       {rows.map((row) => (
         <div className="appointments-table-row" key={row.id}>
-          <div className="appointments-table-patient"><span className="appointments-patient-avatar">{row.patientName.slice(0, 1).toUpperCase()}</span><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div></div>
+          <div className="appointments-table-patient"><span className="appointments-patient-avatar"><UserRound size={26} /></span><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div></div>
           <div className="appointments-table-time">{row.time}</div>
           <div><span className={`appointment-status-pill ${row.status}`}>{row.status.replace("_", " ")}</span></div>
           <div className="appointments-table-actions"><select value={row.status} onChange={(event) => onStatusChange(row.id, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></div>

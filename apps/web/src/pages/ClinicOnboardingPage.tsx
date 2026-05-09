@@ -214,7 +214,7 @@ export function ClinicOnboardingPage() {
             const active = activeClinicId === clinic.clinicId;
             return (
               <div className={`clinic-table-row ${active ? "active" : ""}`} key={`table-${clinic.clinicId}`}>
-                <div className="clinic-table-name"><span className="clinic-table-avatar">{clinic.clinicName.slice(0, 1).toUpperCase()}</span><div><strong>{clinic.clinicName}</strong><span>/{clinic.clinicSlug}</span></div></div>
+                <div className="clinic-table-name"><span className="clinic-table-avatar"><Building2 size={26} /></span><div><strong>{clinic.clinicName}</strong><span>/{clinic.clinicSlug}</span></div></div>
                 <div className="clinic-table-activity"><span>{stats.appointments} bookings</span><span>{stats.chats} chats</span><span>{stats.knowledge} docs</span></div>
                 <div><span className={`clinic-status-pill ${active ? "active" : ""}`}>{active ? "Active" : clinic.role}</span></div>
                 <div className="clinic-table-actions"><button type="button" title="Use clinic" aria-label={`Use ${clinic.clinicName}`} onClick={() => switchClinic(clinic.clinicId)}><LayoutDashboard size={14} /></button><button type="button" title="Edit clinic" aria-label={`Edit ${clinic.clinicName}`} onClick={() => void openEdit(clinic)}><Edit3 size={14} /></button><button type="button" title="Delete clinic" aria-label={`Delete ${clinic.clinicName}`} className="icon-danger" onClick={() => void deleteClinic(clinic)}><Trash2 size={14} /></button></div>

@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 
-export type ChatChannel = "web_widget" | "telegram";
+export type ChatChannel = "web_widget";
 
 export type PublicChatInput = {
   clinicId: string;

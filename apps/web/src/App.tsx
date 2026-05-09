@@ -14,13 +14,13 @@ import {
   HeartPulse,
   LayoutDashboard,
   MessageSquareText,
+  Megaphone,
   Settings2,
   ShieldCheck,
   LogOut,
   Sparkles,
   Stethoscope,
   Users,
-  WalletCards,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -55,8 +55,8 @@ const navItems: NavItem[] = [
   { label: "AI Receptionist", path: "ai-receptionist", icon: Bot },
   { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "appointments", icon: CalendarCheck },
+  { label: "Marketing", path: "marketing", icon: Megaphone },
   { label: "Integrations", path: "integrations", icon: Globe2 },
-  { label: "Billing", path: "billing", icon: WalletCards },
   { label: "Safety", path: "safety", icon: ShieldCheck },
   { label: "Account Settings", path: "account", icon: Settings2 },
 ];
@@ -85,7 +85,6 @@ const setupItems = [
 const knowledgeSources = [
   { title: "Clinic services and prices", meta: "18 chunks indexed", status: "Indexed" },
   { title: "Pre-visit preparation guide", meta: "PDF source", status: "Indexed" },
-  { title: "HMO and payment policy", meta: "Patient questions detected", status: "Review" },
   { title: "Doctor profiles", meta: "4 providers", status: "Indexed" },
   { title: "Cancellation policy", meta: "Clinic rule", status: "Indexed" },
 ];
@@ -162,8 +161,8 @@ function App() {
             <Route path="/ai-receptionist" element={<LegacyClinicPageRedirect page="ai-receptionist" />} />
             <Route path="/knowledge-base" element={<LegacyClinicPageRedirect page="knowledge-base" />} />
             <Route path="/appointments" element={<LegacyClinicPageRedirect page="appointments" />} />
+            <Route path="/marketing" element={<LegacyClinicPageRedirect page="marketing" />} />
             <Route path="/integrations" element={<LegacyClinicPageRedirect page="integrations" />} />
-            <Route path="/billing" element={<LegacyClinicPageRedirect page="billing" />} />
             <Route path="/safety" element={<LegacyClinicPageRedirect page="safety" />} />
             <Route path="/account" element={<LegacyClinicPageRedirect page="account" />} />
             <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
@@ -172,8 +171,8 @@ function App() {
             <Route path="/ai-receptionist/:clinicId" element={<ReceptionistPage />} />
             <Route path="/knowledge-base/:clinicId" element={<KnowledgeBasePage />} />
             <Route path="/appointments/:clinicId" element={<AppointmentsPage />} />
+            <Route path="/marketing/:clinicId" element={<MarketingPage />} />
             <Route path="/integrations/:clinicId" element={<IntegrationsPage />} />
-            <Route path="/billing/:clinicId" element={<BillingPage />} />
             <Route path="/safety/:clinicId" element={<SafetyPage />} />
             <Route path="/account/:clinicId" element={<AccountSettingsPage />} />
           </Route>
@@ -913,16 +912,27 @@ function BookingRequestPage() {
   const { clinicId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
-  const [form, setForm] = useState({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
-  const [status, setStatus] = useState("Fill out the appointment details below. Clinic staff will confirm availability.");
+  const today = useMemo(() => new Date(), []);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState(() => formatDateKey(today));
+  const [selectedTime, setSelectedTime] = useState("");
+  const [step, setStep] = useState<"schedule" | "details">("schedule");
+  const [form, setForm] = useState({ patientName: "", contact: "", service: "", note: "" });
+  const [status, setStatus] = useState("Choose your preferred date and time. Clinic staff will confirm availability.");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const availableDays = useMemo(() => buildAvailableDays(calendarMonth, today), [calendarMonth, today]);
+  const selectedDateLabel = formatLongDate(selectedDate);
+  const selectedDateTimeLabel = selectedTime ? `${selectedTime}, ${selectedDateLabel}` : selectedDateLabel;
+  const requestedAt = selectedTime ? buildDateTimeValue(selectedDate, selectedTime) : "";
 
   async function submitAppointment(event: FormEvent) {
     event.preventDefault();
     if (!clinicId) return setStatus("Missing clinic ID.");
-    if (!form.patientName.trim() || !form.contact.trim() || !form.service.trim() || !form.requestedAt.trim()) {
-      return setStatus("Please complete patient name, contact, service, and preferred date/time.");
+    if (!selectedTime) return setStatus("Please choose a time slot first.");
+    if (!form.patientName.trim() || !form.contact.trim() || !form.service.trim()) {
+      return setStatus("Please complete name, contact, and service requested.");
     }
 
     setSaving(true);
@@ -933,7 +943,7 @@ function BookingRequestPage() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": import.meta.env.DEV ? "text/plain;charset=UTF-8" : "application/json" },
-        body: JSON.stringify({ clinicId, sessionId, ...form }),
+        body: JSON.stringify({ clinicId, sessionId, ...form, requestedAt }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "Appointment request failed.");
@@ -947,26 +957,130 @@ function BookingRequestPage() {
   }
 
   return (
-    <main className="booking-page">
-      <section className="booking-card">
-        <div className="booking-brand"><span className="brand-mark"><CalendarCheck size={24} /></span><div><p className="eyebrow">StormeAI booking request</p><h1>Request an appointment</h1></div></div>
-        <p className="empty-state">{status}</p>
-        {submitted ? (
-          <div className="success-panel"><Check size={34} /><h2>Request received</h2><p>Thank you. This is not confirmed yet — clinic staff will review and contact you.</p></div>
-        ) : (
-          <form className="appointment-form modal-form" onSubmit={submitAppointment}>
-            <label>Patient name<input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Juan Dela Cruz" /></label>
-            <label>Phone or email<input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="0917 123 4567 or email@example.com" /></label>
-            <label>Service requested<input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Dental cleaning, consultation, etc." /></label>
-            <label>Preferred date and time<input type="datetime-local" value={form.requestedAt} onChange={(event) => setForm({ ...form, requestedAt: event.target.value })} /></label>
-            <label>Additional note<textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional: symptoms, concerns, or special requests. Do not use this for emergencies." /></label>
-            {sessionId && <p className="empty-state">Linked to chat session: {sessionId}</p>}
-            <button className="primary-button" disabled={saving} type="submit">{saving ? "Submitting…" : "Submit appointment request"}</button>
-          </form>
-        )}
+    <main className="booking-page calendly-inspired-page">
+      <section className="booking-shell">
+        <aside className="booking-summary-panel">
+          {step === "details" && !submitted && <button className="booking-back-button" type="button" onClick={() => setStep("schedule")}>←</button>}
+          <div className="booking-avatar"><Bot size={34} /></div>
+          <p className="booking-host">StormeAI Receptionist</p>
+          <h1>Clinic appointment request</h1>
+          <div className="booking-meta-list">
+            <div><CalendarCheck size={22} /><span>15 min request window</span></div>
+            <div><MessageSquareText size={22} /><span>Started from AI chat session</span></div>
+            {selectedTime && <div><CalendarCheck size={22} /><span>{selectedDateTimeLabel}</span></div>}
+            <div><Globe2 size={22} /><span>Philippine Time</span></div>
+          </div>
+          <p className="booking-summary-note">Choose a preferred slot and send your details. This does not confirm the appointment yet — clinic staff will review and contact you.</p>
+          <div className="booking-footer-links"><span>StormeAI</span><span>No diagnosis · Staff confirmation required</span></div>
+        </aside>
+
+        <section className="booking-main-panel">
+          {submitted ? (
+            <div className="booking-success-state"><Check size={42} /><p className="eyebrow">Request received</p><h2>Clinic staff will confirm your appointment.</h2><p>{status}</p></div>
+          ) : step === "schedule" ? (
+            <>
+              <div className="booking-section-heading"><p className="eyebrow">Select a Date & Time</p><h2>{formatMonthYear(calendarMonth)}</h2></div>
+              <div className="booking-scheduler-grid">
+                <div className="booking-calendar-card">
+                  <div className="booking-calendar-nav">
+                    <button type="button" onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))}>‹</button>
+                    <strong>{formatMonthYear(calendarMonth)}</strong>
+                    <button type="button" onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}>›</button>
+                  </div>
+                  <div className="booking-weekdays">{["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => <span key={day}>{day}</span>)}</div>
+                  <div className="booking-calendar-grid">
+                    {buildCalendarCells(calendarMonth).map((date, index) => date ? (
+                      <button
+                        type="button"
+                        key={formatDateKey(date)}
+                        className={`${availableDays.has(formatDateKey(date)) ? "available" : ""} ${selectedDate === formatDateKey(date) ? "selected" : ""}`}
+                        disabled={!availableDays.has(formatDateKey(date))}
+                        onClick={() => { setSelectedDate(formatDateKey(date)); setSelectedTime(""); }}
+                      >{date.getDate()}</button>
+                    ) : <span key={`empty-${index}`} />)}
+                  </div>
+                  <div className="booking-timezone"><strong>Time zone</strong><span><Globe2 size={18} /> Philippine Time ({formatCurrentTime()})</span></div>
+                </div>
+
+                <div className="booking-slots-card">
+                  <h3>{selectedDateLabel}</h3>
+                  <div className="booking-slot-list">
+                    {BOOKING_TIME_SLOTS.map((slot) => <button className={selectedTime === slot ? "selected" : ""} type="button" key={slot} onClick={() => setSelectedTime(slot)}>{slot}</button>)}
+                  </div>
+                  <button className="primary-button booking-next-button" disabled={!selectedTime} type="button" onClick={() => setStep("details")}>Next <ArrowRight size={16} /></button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <form className="booking-details-form" onSubmit={submitAppointment}>
+              <div className="booking-section-heading"><p className="eyebrow">Enter Details</p><h2>Almost done</h2><span>{selectedDateTimeLabel}</span></div>
+              <label>Name *<input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Juan Dela Cruz" /></label>
+              <label>Phone or email *<input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="0917 123 4567 or email@example.com" /></label>
+              <label>Service requested *<input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Dental cleaning, consultation, etc." /></label>
+              <label>Please share anything that will help staff prepare<textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional notes. For emergencies, call emergency services or go to the nearest ER." /></label>
+              {sessionId && <p className="booking-linked-chat">Linked to your AI chat session.</p>}
+              <p className="booking-terms">By proceeding, you agree that this is an appointment request only and staff confirmation is required.</p>
+              <button className="primary-button booking-submit-button" disabled={saving} type="submit">{saving ? "Submitting…" : "Schedule request"}</button>
+              <p className="empty-state">{status}</p>
+            </form>
+          )}
+        </section>
       </section>
     </main>
   );
+}
+
+const BOOKING_TIME_SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM"];
+
+function buildCalendarCells(month: Date) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const cells: Array<Date | null> = Array.from({ length: first.getDay() }, () => null);
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  for (let day = 1; day <= days; day += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), day));
+  return cells;
+}
+
+function buildAvailableDays(month: Date, today: Date) {
+  const days = new Set<string>();
+  const total = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  for (let day = 1; day <= total; day += 1) {
+    const date = new Date(month.getFullYear(), month.getMonth(), day);
+    const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (!isPast && date.getDay() !== 0) days.add(formatDateKey(date));
+  }
+  return days;
+}
+
+function formatDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatLongDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+function formatMonthYear(date: Date) {
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function buildDateTimeValue(dateKey: string, timeLabel: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const match = timeLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  let hour = Number(match?.[1] || 9);
+  const minute = Number(match?.[2] || 0);
+  const meridiem = match?.[3]?.toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function formatCurrentTime() {
+  return new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }).toLowerCase();
 }
 
 function AppointmentsPage() {
@@ -1098,6 +1212,245 @@ function AppointmentsPage() {
   );
 }
 
+
+type MarketingContact = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  lastService: string;
+  lastVisit: string;
+  appointmentCount: number;
+};
+
+type MarketingAttachment = { filename: string; content: string; contentType?: string; size: number };
+
+function MarketingPage() {
+  const [contacts, setContacts] = useState<MarketingContact[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState("Loading appointment contacts…");
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [campaign, setCampaign] = useState({
+    channel: "email",
+    audience: "all",
+    fromName: "StormeAI Clinic",
+    replyTo: "",
+    subject: "Clinic promo",
+    message: "Hi! We have a new clinic promo/notice. Reply here or contact the clinic to learn more.",
+    includeFooter: true,
+  });
+  const [attachments, setAttachments] = useState<MarketingAttachment[]>([]);
+
+  async function loadContacts() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) {
+      setContacts([]);
+      setSelectedIds([]);
+      setLoading(false);
+      setStatus("Choose a clinic first.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("id,patient_note,created_at,requested_start_at,scheduled_start_at,patients(id,full_name,email,phone)")
+      .eq("clinic_id", clinicId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setStatus(`Failed to load marketing contacts: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const byKey = new Map<string, MarketingContact>();
+    (data || []).forEach((row: any) => {
+      const patient = Array.isArray(row.patients) ? row.patients[0] : row.patients;
+      const email = String(patient?.email || "").trim();
+      const phone = String(patient?.phone || "").trim();
+      const key = patient?.id || email || phone;
+      if (!key || (!email && !phone)) return;
+      const service = String(row.patient_note || "").split("\n")[0]?.replace("Service: ", "") || "Appointment patient";
+      const existing = byKey.get(String(key));
+      if (existing) {
+        existing.appointmentCount += 1;
+        return;
+      }
+      byKey.set(String(key), {
+        id: String(key),
+        name: patient?.full_name || "Patient",
+        email,
+        phone,
+        lastService: service,
+        lastVisit: row.scheduled_start_at || row.requested_start_at || row.created_at,
+        appointmentCount: 1,
+      });
+    });
+
+    const nextContacts = Array.from(byKey.values());
+    setContacts(nextContacts);
+    setSelectedIds(nextContacts.map((contact) => contact.id));
+    setStatus(`${nextContacts.length} previous patient contact${nextContacts.length === 1 ? "" : "s"} loaded from appointments.`);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void loadContacts();
+    return subscribeWorkspaceSelection(() => void loadContacts());
+  }, []);
+
+  const searchedContacts = contacts.filter((contact) => [contact.name, contact.email, contact.phone, contact.lastService].join(" ").toLowerCase().includes(patientSearch.toLowerCase()));
+  const emailContacts = contacts.filter((contact) => contact.email);
+  const smsContacts = contacts.filter((contact) => contact.phone);
+  const selectedContacts = contacts.filter((contact) => selectedIds.includes(contact.id));
+  const selectedEmailContacts = selectedContacts.filter((contact) => contact.email);
+  const selectedSmsContacts = selectedContacts.filter((contact) => contact.phone);
+  const activeContacts = campaign.channel === "email" ? selectedEmailContacts : selectedSmsContacts;
+  const smsText = selectedSmsContacts.map((contact) => contact.phone).join(", ");
+
+  function toggleContact(id: string) {
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  async function copySmsList() {
+    await navigator.clipboard.writeText(smsText);
+    setStatus(`Copied ${selectedSmsContacts.length} SMS number${selectedSmsContacts.length === 1 ? "" : "s"}. SMS sending provider can be connected next.`);
+  }
+
+  async function loadAttachments(files: FileList | null) {
+    if (!files?.length) return;
+    const next = await Promise.all(Array.from(files).slice(0, 5).map(async (file) => ({
+      filename: file.name,
+      contentType: file.type || undefined,
+      size: file.size,
+      content: await fileToBase64(file),
+    })));
+    setAttachments(next);
+  }
+
+  async function sendEmailCampaign() {
+    const clinicId = getWorkspaceSelection().clinicId;
+    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    if (!selectedEmailContacts.length) return setStatus("Select at least one patient with an email address.");
+    if (!campaign.subject.trim() || !campaign.message.trim()) return setStatus("Subject and message are required.");
+
+    setSending(true);
+    setStatus("Sending campaign with Resend…");
+    const payload = {
+      clinicId,
+      to: selectedEmailContacts.map((contact) => contact.email),
+      subject: campaign.subject,
+      body: campaign.includeFooter ? `${campaign.message}\n\n— Sent by the clinic via StormeAI` : campaign.message,
+      fromName: campaign.fromName,
+      replyTo: campaign.replyTo || undefined,
+      attachments,
+    };
+    const { data: sessionData } = await supabase.auth.getSession();
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const response = await fetch(`${String(supabaseUrl).replace(/\/$/, "")}/functions/v1/send-marketing-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(supabaseAnonKey ? { apikey: supabaseAnonKey } : {}),
+        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      const resendMessage = data?.result?.message || data?.result?.error || data?.result?.name;
+      setStatus(`Send failed: ${data?.error || resendMessage || response.statusText}`);
+    } else {
+      setStatus(`Campaign sent to ${data?.sent || selectedEmailContacts.length} email recipient${selectedEmailContacts.length === 1 ? "" : "s"}.`);
+      setComposerOpen(false);
+    }
+    setSending(false);
+  }
+
+  return (
+    <>
+      <PageHeader eyebrow="Marketing" title="Campaigns for previous patients" action="Resend email + SMS prep" />
+      <section className="content-grid two-one marketing-dashboard">
+        <Panel title="Campaign center" subtitle="Send promos, discounts, and notices from appointment contacts" icon={Megaphone}>
+          <div className="marketing-hero">
+            <div>
+              <p className="eyebrow">Audience ready</p>
+              <h3>{selectedIds.length} selected patient{selectedIds.length === 1 ? "" : "s"}</h3>
+              <p>Email uses Resend. SMS numbers are prepared here; SMS provider connection can be added next.</p>
+            </div>
+            <button className="primary-button" type="button" disabled={!contacts.length} onClick={() => setComposerOpen(true)}>Create campaign</button>
+          </div>
+          <ConfigList items={[["Email recipients", String(selectedEmailContacts.length)], ["SMS recipients", String(selectedSmsContacts.length)], ["Email provider", "Resend"], ["Attachments", `${attachments.length}/5 files`]]} />
+        </Panel>
+        <Panel title="Previous patient details" subtitle={status} icon={Users}>
+          <input className="search-input" value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search patients, email, phone, service…" />
+          <div className="panel-action-row compact-actions">
+            <button className="ghost-button" type="button" onClick={() => setSelectedIds(contacts.map((contact) => contact.id))}>Select all</button>
+            <button className="ghost-button" type="button" onClick={() => setSelectedIds([])}>Clear</button>
+          </div>
+          <div className="source-list live-list patient-detail-list">
+            {loading ? <p className="empty-state">Loading patients…</p> : searchedContacts.length ? searchedContacts.map((contact) => (
+              <label className="patient-detail-card" key={contact.id}>
+                <input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={() => toggleContact(contact.id)} />
+                <div>
+                  <strong>{contact.name}</strong>
+                  <span>{contact.email || "No email"} · {contact.phone || "No phone"}</span>
+                  <small>{contact.lastService} · {formatAppointmentTime(contact.lastVisit)} · {contact.appointmentCount} appointment{contact.appointmentCount === 1 ? "" : "s"}</small>
+                </div>
+              </label>
+            )) : <p className="empty-state">No previous patient details found.</p>}
+          </div>
+        </Panel>
+      </section>
+
+      {composerOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create marketing campaign">
+          <div className="prompt-modal create-modal marketing-modal">
+            <div className="prompt-modal-header">
+              <div><p className="eyebrow">Marketing campaign</p><h2>Create promo, discount, or notice</h2></div>
+              <button className="ghost-button" type="button" onClick={() => setComposerOpen(false)}>Close</button>
+            </div>
+            <form className="marketing-form modal-form" onSubmit={(event) => event.preventDefault()}>
+              <div className="campaign-grid">
+                <label>Channel<select value={campaign.channel} onChange={(event) => setCampaign({ ...campaign, channel: event.target.value })}><option value="email">Email via Resend</option><option value="sms">SMS list</option></select></label>
+                <label>Audience<select value={campaign.audience} onChange={(event) => setCampaign({ ...campaign, audience: event.target.value })}><option value="all">All selected patients</option><option value="email-only">Patients with email</option><option value="sms-only">Patients with phone</option></select></label>
+                <label>From name<input value={campaign.fromName} onChange={(event) => setCampaign({ ...campaign, fromName: event.target.value })} placeholder="Clinic name" /></label>
+                <label>Reply-to email<input value={campaign.replyTo} onChange={(event) => setCampaign({ ...campaign, replyTo: event.target.value })} placeholder="clinic@example.com" /></label>
+              </div>
+              <label>Subject<input value={campaign.subject} onChange={(event) => setCampaign({ ...campaign, subject: event.target.value })} placeholder="Summer cleaning discount" disabled={campaign.channel === "sms"} /></label>
+              <label>Body<textarea value={campaign.message} onChange={(event) => setCampaign({ ...campaign, message: event.target.value })} placeholder="Write your promo, discount, or clinic notice…" /></label>
+              <label className="attachment-drop">Attachments<input type="file" multiple onChange={(event) => void loadAttachments(event.target.files)} /><span>{attachments.length ? attachments.map((file) => file.filename).join(", ") : "Attach promo image/PDF, optional up to 5 files"}</span></label>
+              <label className="checkbox-row"><input type="checkbox" checked={campaign.includeFooter} onChange={(event) => setCampaign({ ...campaign, includeFooter: event.target.checked })} /> Include StormeAI clinic footer</label>
+              <div className="campaign-preview">
+                <strong>Preview</strong>
+                <p>{campaign.message}</p>
+              </div>
+              <div className="panel-action-row">
+                {campaign.channel === "email" ? <button className="primary-button" type="button" disabled={sending || !selectedEmailContacts.length} onClick={() => void sendEmailCampaign()}>{sending ? "Sending…" : `Send with Resend (${selectedEmailContacts.length})`}</button> : <button className="primary-button" type="button" disabled={!selectedSmsContacts.length} onClick={() => void copySmsList()}>Copy SMS numbers ({selectedSmsContacts.length})</button>}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function fileToBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+
 function IntegrationsPage() {
   const clinicId = getWorkspaceSelection().clinicId || "CLINIC_UUID";
   const receptionistId = getWorkspaceSelection().receptionistId || "OPTIONAL_RECEPTIONIST_UUID";
@@ -1116,46 +1469,6 @@ function IntegrationsPage() {
       <Panel title="Telegram bot" subtitle="Connect BotFather bot to StormeAI" icon={MessageSquareText}>
         <ConfigList items={[["Function", `${supabaseUrl}/functions/v1/telegram-webhook`], ["Secret", "TELEGRAM_BOT_TOKEN"], ["Clinic", clinicId], ["Channel", "telegram"]]} />
         <p className="empty-state">Set the Telegram token and clinic ID as Supabase secrets, then register the webhook with Telegram.</p>
-      </Panel>
-    </section>
-  );
-}
-
-function BillingPage() {
-  const [usage, setUsage] = useState({ chats: 0, knowledge: 0, staff: 0 });
-  const [status, setStatus] = useState("Loading billing…");
-
-  async function loadBilling() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
-    const [chats, knowledge, staff] = await Promise.all([
-      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("sender", "patient"),
-      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-      supabase.from("clinic_members").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-    ]);
-    setUsage({ chats: chats.count || 0, knowledge: knowledge.count || 0, staff: staff.count || 0 });
-    setStatus("Fixed monthly plan loaded.");
-  }
-
-  useEffect(() => {
-    void loadBilling();
-    return subscribeWorkspaceSelection(() => void loadBilling());
-  }, []);
-
-  return (
-    <section className="content-grid two-one">
-      <Panel title="StormeAI fixed plan" subtitle={status} icon={WalletCards}>
-        <div className="billing-card fixed-plan-card">
-          <div>
-            <span className="badge green">Fixed MVP plan</span>
-            <h3>₱10,000 / month</h3>
-            <p>Unlimited patient chats · Clinic AI receptionist · Knowledge base · Appointments · Safety handoff.</p>
-          </div>
-          <button className="primary-button" type="button">Manual billing</button>
-        </div>
-      </Panel>
-      <Panel title="Usage overview" subtitle="No chat cap on fixed plan" icon={Activity}>
-        <ConfigList items={[["Monthly price", "₱10,000"], ["Chats", "Unlimited"], ["Chat messages used", String(usage.chats)], ["Knowledge docs", String(usage.knowledge)], ["Staff users", String(usage.staff)], ["Billing model", "Fixed monthly manual billing"]]} />
       </Panel>
     </section>
   );

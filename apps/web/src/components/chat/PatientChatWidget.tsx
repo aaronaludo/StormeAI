@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Bot, CalendarCheck, Info, Send, ShieldAlert, UserRound } from "lucide-react";
+import { Bot, CalendarCheck, Info, Send, UserRound } from "lucide-react";
 import { sendReceptionistChatTurn } from "../../lib/chat/receptionistChat";
 
 type WidgetState = "live" | "thinking" | "ai" | "safe-fallback" | "rule" | "error";
@@ -107,7 +107,6 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
       <div className="widget-quick-actions">
         <button type="button" disabled={state === "thinking"} onClick={() => send("What are your clinic hours?")}>Clinic hours</button>
         <button type="button" disabled={state === "thinking"} onClick={() => send("I want to book an appointment") }><CalendarCheck size={14} /> Book</button>
-        <button type="button" disabled={state === "thinking"} onClick={() => send("I have chest pain") }><ShieldAlert size={14} /> Urgent</button>
       </div>
 
       <form className="widget-input-row" onSubmit={submit}>

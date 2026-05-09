@@ -1,9 +1,7 @@
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
   Bot,
-  BrainCircuit,
   CalendarCheck,
   Check,
   ChevronRight,
@@ -25,6 +23,7 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Area, Bar as RechartsBar, BarChart, CartesianGrid, ComposedChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
@@ -57,7 +56,6 @@ const navItems: NavItem[] = [
   { label: "Appointments", path: "appointments", icon: CalendarCheck },
   { label: "Marketing", path: "marketing", icon: Megaphone },
   { label: "Integrations", path: "integrations", icon: Globe2 },
-  { label: "Safety", path: "safety", icon: ShieldCheck },
   { label: "Account Settings", path: "account", icon: Settings2 },
 ];
 
@@ -66,20 +64,6 @@ const metrics: Metric[] = [
   { label: "Booking requests", value: "12", delta: "7 need review", tone: "teal" },
   { label: "Human handoffs", value: "4", delta: "2 urgent", tone: "amber" },
   { label: "Knowledge gaps", value: "7", delta: "3 new FAQs", tone: "red" },
-];
-
-const conversations = [
-  { title: "Dental cleaning inquiry", detail: "Patient asked about price and tomorrow slots", status: "Booking intent", tone: "green" },
-  { title: "Derma consultation", detail: "Asked about acne scar consultation", status: "Needs staff", tone: "amber" },
-  { title: "Clinic hours question", detail: "Answered from clinic profile", status: "Resolved", tone: "blue" },
-  { title: "Emergency keyword detected", detail: "Chest pain message routed to safety flow", status: "Escalated", tone: "red" },
-];
-
-const setupItems = [
-  "Receptionist personality configured",
-  "No-diagnosis safety rules enabled",
-  "Default AI Model route active",
-  "Knowledge base needs 3 more FAQs",
 ];
 
 const knowledgeSources = [
@@ -163,7 +147,6 @@ function App() {
             <Route path="/appointments" element={<LegacyClinicPageRedirect page="appointments" />} />
             <Route path="/marketing" element={<LegacyClinicPageRedirect page="marketing" />} />
             <Route path="/integrations" element={<LegacyClinicPageRedirect page="integrations" />} />
-            <Route path="/safety" element={<LegacyClinicPageRedirect page="safety" />} />
             <Route path="/account" element={<LegacyClinicPageRedirect page="account" />} />
             <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
             <Route path="/chats/:clinicId" element={<ChatsPage />} />
@@ -173,7 +156,6 @@ function App() {
             <Route path="/appointments/:clinicId" element={<AppointmentsPage />} />
             <Route path="/marketing/:clinicId" element={<MarketingPage />} />
             <Route path="/integrations/:clinicId" element={<IntegrationsPage />} />
-            <Route path="/safety/:clinicId" element={<SafetyPage />} />
             <Route path="/account/:clinicId" element={<AccountSettingsPage />} />
           </Route>
         </Route>
@@ -444,7 +426,17 @@ function LegacyClinicPageRedirect({ page }: { page: string }) {
 
 function DashboardPage() {
   const { clinicId } = useParams();
-  const [stats, setStats] = useState({ chats: 0, sessions: 0, appointments: 0, handoffs: 0, emergencies: 0, knowledge: 0 });
+  const [stats, setStats] = useState({
+    chats: 0,
+    sessions: 0,
+    appointments: 0,
+    requestedAppointments: 0,
+    confirmedAppointments: 0,
+    knowledge: 0,
+    marketingContacts: 0,
+    receptionistCount: 0,
+  });
+  const [trend, setTrend] = useState<Array<{ label: string; chats: number; appointments: number }>>([]);
   const [status, setStatus] = useState("Loading analytics…");
 
   async function loadDashboardStats() {
@@ -453,15 +445,41 @@ function DashboardPage() {
     if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
     if (!supabase) return setStatus("Supabase is not configured.");
 
-    const [messages, sessions, appointments, handoffs, emergencies, knowledge] = await Promise.all([
+    const since = new Date();
+    since.setDate(since.getDate() - 6);
+    since.setHours(0, 0, 0, 0);
+
+    const [messages, sessions, appointments, requested, confirmed, knowledge, receptionists, recentMessages, recentAppointments, appointmentContacts] = await Promise.all([
       supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
       supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
       supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("handoff_requested", true),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("emergency_flag", true),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "requested"),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "confirmed"),
       supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
+      listReceptionists(activeClinicId).then((items) => ({ count: items.length, data: items, error: null })).catch((error) => ({ count: 0, data: [], error })),
+      supabase.from("chat_messages").select("created_at").eq("clinic_id", activeClinicId).gte("created_at", since.toISOString()),
+      supabase.from("appointments").select("created_at,requested_start_at,scheduled_start_at").eq("clinic_id", activeClinicId).limit(500),
+      supabase.from("appointments").select("patients(id,email,phone)").eq("clinic_id", activeClinicId),
     ]);
-    setStats({ chats: messages.count || 0, sessions: sessions.count || 0, appointments: appointments.count || 0, handoffs: handoffs.count || 0, emergencies: emergencies.count || 0, knowledge: knowledge.count || 0 });
+
+    const contactKeys = new Set<string>();
+    ((appointmentContacts.data || []) as any[]).forEach((row) => {
+      const patient = Array.isArray(row.patients) ? row.patients[0] : row.patients;
+      const key = patient?.id || patient?.email || patient?.phone;
+      if (key && (patient?.email || patient?.phone)) contactKeys.add(String(key));
+    });
+
+    setStats({
+      chats: messages.count || 0,
+      sessions: sessions.count || 0,
+      appointments: appointments.count || 0,
+      requestedAppointments: requested.count || 0,
+      confirmedAppointments: confirmed.count || 0,
+      knowledge: knowledge.count || 0,
+      marketingContacts: contactKeys.size,
+      receptionistCount: receptionists.count || 0,
+    });
+    setTrend(buildDashboardTrend(recentMessages.data || [], recentAppointments.data || []));
     setStatus("Clinic analytics loaded.");
   }
 
@@ -470,43 +488,145 @@ function DashboardPage() {
   }, [clinicId]);
 
   const activeClinicId = clinicId || getWorkspaceSelection().clinicId || "";
+  const healthScore = Math.min(100, Math.round(((stats.knowledge ? 30 : 0) + (stats.receptionistCount ? 25 : 0) + (stats.appointments ? 25 : 0) + (stats.sessions ? 20 : 0))));
+  const conversionRate = stats.sessions ? Math.round((stats.appointments / stats.sessions) * 100) : 0;
 
   return (
     <>
-      <section className="hero-grid">
-        <div className="hero-card">
+      <section className="hero-grid dashboard-hero-grid">
+        <div className="hero-card dashboard-command-card">
           <div className="hero-content">
-            <span className="badge teal">Chat-only AI front desk</span>
-            <h2>Answer patient questions and book appointments 24/7.</h2>
-            <p>StormeAI gives clinics a safe, configurable AI receptionist that answers from approved knowledge, collects booking details, and escalates sensitive cases to staff.</p>
+            <span className="badge teal">Clinic operating overview</span>
+            <h2>StormeAI command center</h2>
+            <p>Track chat activity, appointment demand, patient marketing contacts, knowledge readiness, and integrations from one dashboard.</p>
             <div className="hero-actions">
-              <NavLink className="primary-button" to={clinicPagePath(activeClinicId, "ai-receptionist")}>Review setup <ArrowRight size={17} /></NavLink>
-              <button className="ghost-button" type="button" onClick={() => document.querySelector<HTMLButtonElement>(".floating-chat-button")?.click()}>View patient widget</button>
+              <NavLink className="primary-button" to={clinicPagePath(activeClinicId, "appointments")}>Review bookings <ArrowRight size={17} /></NavLink>
+              <NavLink className="ghost-button" to={clinicPagePath(activeClinicId, "marketing")}>Open marketing</NavLink>
             </div>
           </div>
         </div>
-        <HealthCard />
-      </section>
-
-      <section className="metrics-grid">
-        <MetricCard label="Chat messages" value={String(stats.chats)} delta={status} tone="blue" />
-        <MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Total patient conversations" tone="teal" />
-        <MetricCard label="Appointments" value={String(stats.appointments)} delta="Booking requests" tone="green" />
-        <MetricCard label="Handoffs" value={String(stats.handoffs)} delta="Human support needed" tone="amber" />
-        <MetricCard label="Urgent flags" value={String(stats.emergencies)} delta="Emergency safety triggers" tone="red" />
-        <MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved clinic sources" tone="blue" />
-      </section>
-
-      <section className="content-grid two-one">
-        <Panel title="Conversation inbox" subtitle="Prioritized patient chats and handoffs" icon={MessageSquareText}>
-          <ConversationList />
+        <Panel title="Clinic readiness" subtitle={status} icon={ShieldCheck}>
+          <div className="readiness-ring" style={{ "--score": `${healthScore}%` } as React.CSSProperties}><strong>{healthScore}%</strong><span>ready</span></div>
+          <ConfigList items={[["AI receptionists", String(stats.receptionistCount)], ["Knowledge sources", String(stats.knowledge)], ["Marketing contacts", String(stats.marketingContacts)], ["Booking conversion", `${conversionRate}%`]]} />
         </Panel>
-        <Panel title="AI route" subtitle="Provider and safety mode" icon={BrainCircuit}>
-          <ProviderStack />
+      </section>
+
+      <section className="metrics-grid dashboard-metrics-grid">
+        <MetricCard label="Chat messages" value={String(stats.chats)} delta="All patient/staff messages" tone="blue" />
+        <MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Patient conversations" tone="teal" />
+        <MetricCard label="Appointments" value={String(stats.appointments)} delta={`${stats.requestedAppointments} requested · ${stats.confirmedAppointments} confirmed`} tone="green" />
+        <MetricCard label="Marketing contacts" value={String(stats.marketingContacts)} delta="From appointment patients" tone="teal" />
+        <MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved sources for answers" tone="blue" />
+      </section>
+
+      <section className="content-grid two-one dashboard-analytics-grid">
+        <Panel title="7-day activity trend" subtitle="Chats and appointment requests" icon={Activity}>
+          <DashboardLineChart data={trend} />
+        </Panel>
+        <Panel title="Sidebar page data" subtitle="Live counts from each workspace area" icon={LayoutDashboard}>
+          <DashboardAreaList activeClinicId={activeClinicId} stats={stats} />
+        </Panel>
+      </section>
+
+      <section className="content-grid two-col dashboard-analytics-grid">
+        <Panel title="Appointments pipeline" subtitle="Request status overview" icon={CalendarCheck}>
+          <DashboardBars items={[
+            { label: "Requested", value: stats.requestedAppointments, tone: "blue" },
+            { label: "Confirmed", value: stats.confirmedAppointments, tone: "green" },
+            { label: "Total", value: stats.appointments, tone: "teal" },
+          ]} />
+        </Panel>
+        <Panel title="Growth opportunities" subtitle="Where staff can act next" icon={Sparkles}>
+          <DashboardActionCards activeClinicId={activeClinicId} stats={stats} />
         </Panel>
       </section>
     </>
   );
+}
+
+function buildDashboardTrend(messages: Array<{ created_at?: string }>, appointments: Array<{ created_at?: string; requested_start_at?: string | null; scheduled_start_at?: string | null }>) {
+  const days = Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    date.setHours(0, 0, 0, 0);
+    return { key: date.toISOString().slice(0, 10), label: date.toLocaleDateString("en-US", { weekday: "short" }), chats: 0, appointments: 0 };
+  });
+  const byKey = new Map(days.map((day) => [day.key, day]));
+  messages.forEach((item) => {
+    const key = item.created_at?.slice(0, 10);
+    const day = key ? byKey.get(key) : undefined;
+    if (day) day.chats += 1;
+  });
+  appointments.forEach((item) => {
+    const appointmentDate = item.scheduled_start_at || item.requested_start_at || item.created_at;
+    const key = appointmentDate?.slice(0, 10);
+    const day = key ? byKey.get(key) : undefined;
+    if (day) day.appointments += 1;
+  });
+  return days;
+}
+
+function DashboardLineChart({ data }: { data: Array<{ label: string; chats: number; appointments: number }> }) {
+  return (
+    <div className="dashboard-recharts-card">
+      <ResponsiveContainer width="100%" height={310}>
+        <ComposedChart data={data} margin={{ top: 18, right: 12, left: -18, bottom: 8 }}>
+          <defs>
+            <linearGradient id="chatGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.26} />
+              <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 800 }} />
+          <YAxis yAxisId="chats" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 800 }} />
+          <YAxis yAxisId="appointments" orientation="right" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "#0f766e", fontSize: 12, fontWeight: 800 }} />
+          <Tooltip contentStyle={{ border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 18px 38px rgba(15,23,42,.12)", fontWeight: 800 }} />
+          <Legend iconType="circle" wrapperStyle={{ fontWeight: 850, color: "#334155" }} />
+          <RechartsBar yAxisId="appointments" dataKey="appointments" name="Appointments" radius={[10, 10, 0, 0]} fill="#14b8a6" barSize={26} />
+          <Area yAxisId="chats" type="monotone" dataKey="chats" name="Chats" stroke="#2563eb" strokeWidth={3} fill="url(#chatGradient)" activeDot={{ r: 6 }} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+function DashboardBars({ items }: { items: Array<{ label: string; value: number; tone: string }> }) {
+  return (
+    <div className="dashboard-recharts-card compact-chart">
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={items} margin={{ top: 12, right: 18, left: -18, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 800 }} />
+          <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 800 }} />
+          <Tooltip contentStyle={{ border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 18px 38px rgba(15,23,42,.12)", fontWeight: 800 }} />
+          <RechartsBar dataKey="value" name="Appointments" radius={[12, 12, 0, 0]} fill="#2563eb" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+function DashboardAreaList({ activeClinicId, stats }: { activeClinicId: string; stats: { sessions: number; appointments: number; knowledge: number; marketingContacts: number; receptionistCount: number } }) {
+  const rows = [
+    ["Chats", `${stats.sessions} sessions`, "chats", MessageSquareText],
+    ["Appointments", `${stats.appointments} requests`, "appointments", CalendarCheck],
+    ["Marketing", `${stats.marketingContacts} contacts`, "marketing", Megaphone],
+    ["Knowledge Base", `${stats.knowledge} sources`, "knowledge-base", DatabaseZap],
+    ["AI Receptionist", `${stats.receptionistCount} personas`, "ai-receptionist", Bot],
+    ["Integrations", "Widget + channels", "integrations", Globe2],
+  ] as const;
+  return <div className="dashboard-area-list">{rows.map(([label, value, page, Icon]) => <NavLink key={label} to={clinicPagePath(activeClinicId, page)}><Icon size={18} /><span>{label}</span><strong>{value}</strong><ChevronRight size={16} /></NavLink>)}</div>;
+}
+
+function DashboardActionCards({ activeClinicId, stats }: { activeClinicId: string; stats: { requestedAppointments: number; marketingContacts: number; knowledge: number } }) {
+  return <div className="dashboard-action-cards">
+    <NavLink to={clinicPagePath(activeClinicId, "appointments")}><strong>Confirm booking requests</strong><span>{stats.requestedAppointments} waiting for staff review</span></NavLink>
+    <NavLink to={clinicPagePath(activeClinicId, "marketing")}><strong>Send patient notice</strong><span>{stats.marketingContacts} contacts available for campaigns</span></NavLink>
+    <NavLink to={clinicPagePath(activeClinicId, "knowledge-base")}><strong>Improve answers</strong><span>{stats.knowledge ? `${stats.knowledge} sources active` : "Add your first approved FAQ"}</span></NavLink>
+  </div>;
 }
 
 function ReceptionistPage() {
@@ -616,7 +736,6 @@ function ReceptionistPage() {
           </select>
           <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
         </div>
-        <TinySafetyChecklist />
       </section>
 
       <section className="receptionist-workspace-grid single-column">
@@ -648,20 +767,6 @@ function ReceptionistPage() {
     </>
   );
 }
-
-function TinySafetyChecklist() {
-  return (
-    <div className="tiny-safety" tabIndex={0}>
-      <ShieldCheck size={16} />
-      <span>Safety</span>
-      <div className="tiny-safety-popover">
-        <strong>Safety checklist</strong>
-        <SafetyStack />
-      </div>
-    </div>
-  );
-}
-
 
 function ChatsPage() {
   const [sessions, setSessions] = useState<ChatSessionRow[]>([]);
@@ -1474,62 +1579,8 @@ function IntegrationsPage() {
   );
 }
 
-function SafetyPage() {
-  const [sessions, setSessions] = useState<ChatSessionRow[]>([]);
-  const [status, setStatus] = useState("Loading safety queue…");
-
-  async function loadSafetyQueue() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
-    const { data, error } = await supabase.from("chat_sessions").select("id,status,channel,last_message_at,created_at,handoff_requested,emergency_flag").eq("clinic_id", clinicId).or("handoff_requested.eq.true,emergency_flag.eq.true").order("created_at", { ascending: false });
-    if (error) return setStatus(`Safety queue failed: ${error.message}`);
-    setSessions((data || []).map((row: any) => ({ id: row.id, status: row.status, channel: row.channel, lastMessageAt: row.last_message_at, createdAt: row.created_at, handoffRequested: row.handoff_requested, emergencyFlag: row.emergency_flag })));
-    setStatus(`${data?.length || 0} safety case${data?.length === 1 ? "" : "s"} need review.`);
-  }
-
-  useEffect(() => {
-    void loadSafetyQueue();
-    return subscribeWorkspaceSelection(() => void loadSafetyQueue());
-  }, []);
-
-  async function resolveSession(session: ChatSessionRow) {
-    if (!supabase) return;
-    const { error } = await supabase.from("chat_sessions").update({ status: "closed", handoff_requested: false }).eq("id", session.id);
-    if (error) setStatus(`Resolve failed: ${error.message}`);
-    else await loadSafetyQueue();
-  }
-
-  return (
-    <section className="content-grid two-col">
-      <Panel title="Emergency + human handoff queue" subtitle={status} icon={ShieldCheck}>
-        <div className="chat-session-list">{sessions.length ? sessions.map((session) => <div className="chat-session-card" key={session.id}><div><strong>{formatChatSessionTitle(session)}</strong><span>{formatAppointmentTime(session.lastMessageAt || session.createdAt)}</span></div><div className="chat-session-badges">{session.emergencyFlag && <span className="badge red">Urgent</span>}{session.handoffRequested && <span className="badge amber">Handoff</span>}<button className="ghost-button" type="button" onClick={() => void resolveSession(session)}>Resolve</button></div></div>) : <p className="empty-state">No emergency or handoff cases right now.</p>}</div>
-      </Panel>
-      <Panel title="Emergency response preview" subtitle="Shown when urgent symptoms are detected" icon={AlertTriangle}>
-        <SafetyStack />
-        <div className="emergency-box">I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately. I can also flag this conversation for clinic staff handoff.</div>
-      </Panel>
-    </section>
-  );
-}
-
 function ClipboardLike({ size = 18 }: { size?: number }) {
   return <FileText size={size} />;
-}
-
-function HealthCard() {
-  return (
-    <div className="health-card">
-      <div className="section-heading compact"><p>Receptionist health</p><h3>Ready for clinic traffic</h3></div>
-      <div className="health-list">
-        {setupItems.map((item, index) => (
-          <div className="health-item" key={item}>
-            <span className={index < 4 ? "check-icon" : "warn-icon"}>{index < 4 ? <Check size={15} /> : <AlertTriangle size={15} />}</span>
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function MetricCard({ label, value, delta, tone }: Metric) {
@@ -1556,14 +1607,6 @@ function ChatPreview() {
   );
 }
 
-function ConversationList() {
-  return <div className="conversation-list">{conversations.map((item) => <div className="conversation-row" key={item.title}><div><strong>{item.title}</strong><span>{item.detail}</span></div><span className={`badge ${item.tone}`}>{item.status}</span></div>)}</div>;
-}
-
-function ProviderStack() {
-  return <div className="provider-stack">{providerCards.map((provider) => <div className={`provider-card ${provider.active ? "active" : ""}`} key={provider.name}><div><strong>{provider.name}</strong><span>{provider.model}</span></div><span className={`mini-toggle ${provider.active ? "on" : ""}`} /></div>)}</div>;
-}
-
 function ConfigList({ items }: { items: [string, string][] }) {
   return <div className="config-list">{items.map(([label, value]) => <div className="config-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
 }
@@ -1582,10 +1625,6 @@ function AppointmentTable({ rows, loading, onStatusChange }: { rows: Appointment
   if (!rows.length) return <p className="empty-state">No appointment requests yet. Create one manually or let the Test Chat collect booking details.</p>;
 
   return <div className="appointment-table live-list">{rows.map((row) => <div className="appointment-row rich-row" key={row.id}><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div><span>{row.time}</span><select value={row.status} onChange={(event) => onStatusChange(row.id, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></div>)}</div>;
-}
-
-function SafetyStack() {
-  return <div className="safety-stack">{["No diagnosis", "No prescriptions", "Emergency guidance", "Human handoff", "Audit sensitive cases"].map((rule) => <div className="safety-rule" key={rule}><Check size={15} /><span>{rule}</span></div>)}</div>;
 }
 
 function Bar({ label, value, width }: { label: string; value: string; width: string }) {

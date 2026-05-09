@@ -35,7 +35,7 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   const bookingUrl = buildBookingUrl(input, sessionId);
   const deterministicReply = answerCommonReceptionistQuestion(patientMessage, context);
   if (deterministicReply) {
-    const reply = wantsBooking(patientMessage) ? "I can help request an appointment. Please tap Redirect to enter the details clearly." : deterministicReply;
+    const reply = wantsBooking(patientMessage) ? buildBookingRedirectReply(patientMessage) : deterministicReply;
     await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode: "rule", reason: "common_receptionist_question", booking_url: wantsBooking(patientMessage) ? bookingUrl : undefined });
     await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
     return { sessionId, reply, mode: "rule", citations, receptionistName: context.name, bookingUrl: wantsBooking(patientMessage) ? bookingUrl : undefined };
@@ -244,7 +244,7 @@ function answerCommonReceptionistQuestion(message: string, context: any) {
   }
 
   if (wantsBooking(message)) {
-    return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
+    return buildBookingRedirectReply(message);
   }
 
   if (isEmergency(message)) {
@@ -308,10 +308,17 @@ async function ollamaChat(request: AiRequest) {
 
 function safeFallback(message: string, citations: Array<{ content: string }>, providerError?: string) {
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
-  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
+  if (wantsBooking(message)) return buildBookingRedirectReply(message);
   if (citations.length) return `I found clinic-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
   return providerError ? "I can’t confirm that from approved clinic knowledge right now. I can still collect your concern and route it to clinic staff. What would you like help with?" : "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
 }
 function isEmergency(message: string) { return ["chest pain", "bleeding", "can't breathe", "cant breathe", "emergency", "urgent", "fainted", "severe pain"].some((term) => message.toLowerCase().includes(term)); }
-function wantsBooking(message: string) { return ["appointment", "book", "schedule", "reschedule", "cancel", "available", "slot"].some((term) => message.toLowerCase().includes(term)); }
+function buildBookingRedirectReply(message: string) {
+  const lower = message.toLowerCase();
+  const isTaglish = ["gusto", "tulungan", "ako", "mag book", "mag-book", "pa book", "pabook"].some((term) => lower.includes(term));
+  return isTaglish
+    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Clinic staff ang magco-confirm ng availability."
+    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Clinic staff will confirm availability.";
+}
+function wantsBooking(message: string) { return ["appointment", "book", "booking", "schedule", "reschedule", "cancel", "available", "slot", "pabook", "pa book", "mag-book", "mag book"].some((term) => message.toLowerCase().includes(term)); }
 function wantsHandoff(message: string) { return ["staff", "human", "receptionist", "call me", "contact me", "talk to someone"].some((term) => message.toLowerCase().includes(term)); }

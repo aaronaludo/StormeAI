@@ -4836,3 +4836,13 @@ body.sidebar-resizing {
   from { opacity: 0; transform: translateY(-6px) scale(.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Chats page patient icon uses person glyph */
+.messenger-avatar svg {
+  display: block;
+  stroke-width: 2.4;
+}
+.messenger-avatar {
+  display: grid;
+  place-items: center;
+}

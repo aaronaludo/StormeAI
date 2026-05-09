@@ -67,7 +67,7 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
     const bookingUrl = `/book/${clinicId}?${new URLSearchParams({ sessionId }).toString()}`;
     return {
       sessionId,
-      reply: "I can help request an appointment. Please tap Redirect to enter the details clearly.",
+      reply: buildBookingRedirectReply(input.patientMessage),
       mode: "rule",
       citations,
       bookingUrl,
@@ -101,8 +101,16 @@ function sanitizeReceptionistName(reply: string, receptionistName: string) {
   return reply.replace(/\bMia\b/g, receptionistName);
 }
 
+function buildBookingRedirectReply(message: string) {
+  const lower = message.toLowerCase();
+  const isTaglish = ["gusto", "tulungan", "ako", "mag book", "mag-book", "pa book", "pabook"].some((term) => lower.includes(term));
+  return isTaglish
+    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Clinic staff ang magco-confirm ng availability."
+    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Clinic staff will confirm availability.";
+}
+
 function wantsBooking(message: string) {
-  return ["appointment", "book", "schedule", "reschedule", "cancel", "available", "slot"].some((term) => message.toLowerCase().includes(term));
+  return ["appointment", "book", "booking", "schedule", "reschedule", "cancel", "available", "slot", "pabook", "pa book", "mag-book", "mag book"].some((term) => message.toLowerCase().includes(term));
 }
 
 async function retrieveKnowledge(clinicId: string, message: string): Promise<RagContext> {

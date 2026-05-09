@@ -24,6 +24,7 @@ import {
   X,
   Trash2,
   Stethoscope,
+  UserRound,
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -979,11 +980,10 @@ function ChatsPage() {
           <button className="ghost-button compact-icon-button" type="button" onClick={() => void loadSessions(selectedSessionId)}>Refresh</button>
         </div>
         <div className="messenger-search"><MessageSquareText size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" /></div>
-        <div className="messenger-filter-row"><span className="active">All</span><span>Open</span><span>Closed</span></div>
         <div className="messenger-session-list">
           {loading ? <p className="empty-state">Loading chats…</p> : filteredSessions.length ? filteredSessions.map((session) => (
             <button className={`messenger-session-item ${session.id === selectedSessionId ? "active" : ""}`} type="button" key={session.id} onClick={() => selectSession(session.id)}>
-              <span className="messenger-avatar">{session.channel?.slice(0, 1)?.toUpperCase() || "C"}</span>
+              <span className="messenger-avatar"><UserRound size={22} /></span>
               <div className="messenger-session-copy">
                 <strong>{formatChatSessionTitle(session)}</strong>
                 <span>{session.channel} · {session.status}</span>
@@ -998,7 +998,7 @@ function ChatsPage() {
         <header className="messenger-thread-head">
           {selectedSession ? (
             <>
-              <div className="messenger-avatar large">{selectedSession.channel?.slice(0, 1)?.toUpperCase() || "C"}</div>
+              <div className="messenger-avatar large"><UserRound size={25} /></div>
               <div><strong>{formatChatSessionTitle(selectedSession)}</strong><span>{selectedSession.channel} · Session {selectedSession.id.slice(0, 8)}</span></div>
             </>
           ) : <div><strong>No conversation selected</strong><span>Select a chat from the inbox.</span></div>}
@@ -1014,15 +1014,11 @@ function ChatsPage() {
             </div>
           )) : <div className="messenger-empty-thread"><MessageSquareText size={42} /><h3>No messages selected</h3><p>Choose a patient conversation to view the transcript.</p></div>}
         </div>
-        <footer className="messenger-thread-footer">
-          <input disabled placeholder="Reply composer coming soon — current mode is transcript review." />
-          <button className="primary-button" type="button" disabled>Send</button>
-        </footer>
       </main>
 
       <aside className="messenger-details-panel">
         <div className="details-profile-card">
-          <div className="messenger-avatar xlarge">{selectedSession?.channel?.slice(0, 1)?.toUpperCase() || "C"}</div>
+          <div className="messenger-avatar xlarge"><UserRound size={38} /></div>
           <h3>{selectedSession ? formatChatSessionTitle(selectedSession) : "Chat details"}</h3>
           <span>{selectedSession?.status || "No session"}</span>
         </div>

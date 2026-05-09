@@ -12,51 +12,48 @@
     accent: currentScript?.dataset.accent || window.StormeAI?.accent || "#2563eb",
   };
 
-  if (!config.clinicId || (config.chatMode !== "local-ollama" && !config.apiUrl)) {
-    console.warn("StormeAI widget needs data-clinic-id and data-api-url, unless data-chat-mode is local-ollama.");
+  if (!config.clinicId || (!["local-ollama", "demo"].includes(config.chatMode) && !config.apiUrl)) {
+    console.warn("StormeAI widget needs data-clinic-id and data-api-url, unless data-chat-mode is local-ollama or demo.");
     return;
   }
 
 
 
-  const pageDemoClinics = [
-    {
-      match: ["evergreen-family-clinic", "Evergreen Family Clinic"],
+  const demoClinics = {
+    "demo-evergreen-family-clinic": {
       receptionist: "Mia",
       name: "Evergreen Family Clinic",
-      hours: "Evergreen Family Clinic is open Monday–Thursday from 8:00 AM to 6:00 PM, Friday from 8:00 AM to 4:00 PM, and Saturday from 9:00 AM to 1:00 PM. It is closed on Sundays.",
-      booking: "I can help request an appointment at Evergreen Family Clinic. Please share the patient name, preferred service, preferred date/time, and best contact number or email. Demo phone: (555) 010-1234.",
+      hours: "Evergreen Family Clinic is open Monday–Thursday from 8:00 AM to 6:00 PM, Friday from 8:00 AM to 4:00 PM, and Saturday from 9:00 AM to 1:00 PM. We’re closed on Sundays.",
+      booking: "I can help request an appointment at Evergreen Family Clinic. Please share the patient name, preferred service, preferred date/time, and best contact number or email. For this demo page, you can also call (555) 010-1234.",
       urgent: "If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room. For non-urgent family medicine concerns, Evergreen can collect your details for staff follow-up.",
-      services: "Evergreen offers annual wellness exams, pediatric sick visits, chronic care support, vaccinations, minor procedures, and telehealth triage.",
+      services: "Evergreen offers annual wellness exams, pediatric sick visits, chronic care follow-ups, vaccinations, minor procedures, and telehealth triage.",
       address: "Evergreen Family Clinic is at 1200 Willow Park Ave, Suite 210. Free garage parking is available on level B.",
-      insurance: "Dummy accepted plans include Blue Oak PPO, Northstar HMO, CityCare Select, Medicare demo plans, and self-pay. Demo self-pay wellness visit: $140; telehealth follow-up: $75.",
-      prep: "For a first visit, arrive 15 minutes early and bring ID, insurance card, medication list, and prior records."
+      insurance: "Dummy accepted plans include Blue Oak PPO, Northstar HMO, CityCare Select, Medicare demo plans, and self-pay options. Demo self-pay wellness visit: $140; telehealth follow-up: $75.",
+      prep: "For a first visit, please arrive 15 minutes early and bring ID, insurance card, medication list, and any prior records."
     },
-    {
-      match: ["luna-dental-studio", "Luna Dental Studio"],
+    "demo-luna-dental-studio": {
       receptionist: "Nova",
       name: "Luna Dental Studio",
       hours: "Luna Dental Studio is open Monday–Wednesday from 9:00 AM to 7:00 PM, Thursday from 10:00 AM to 6:00 PM, Friday from 8:00 AM to 3:00 PM, and weekends by appointment.",
-      booking: "I can help request a dental visit at Luna Dental Studio. Please share your name, dental concern, preferred date/time, and best contact. Demo phone: (555) 010-4567.",
+      booking: "I can help request a dental visit at Luna Dental Studio. Please share your name, dental concern, preferred date/time, and best contact. For this demo page, you can also call (555) 010-4567.",
       urgent: "For severe swelling, dental trauma, uncontrolled bleeding, or trouble breathing, seek urgent medical care. For tooth pain or chipped teeth, Luna can collect details for a priority dental visit request.",
       services: "Luna offers cleanings and exams, fillings and crowns, whitening consults, urgent tooth visits, kids dentistry, and clear aligner screening.",
       address: "Luna Dental Studio is at 44 Moonrise Blvd, Floor 3, two blocks from Central Station.",
       insurance: "Dummy accepted plans include SmileBridge, Delta Demo PPO, BrightCare Dental, FamilyPlus Dental, and self-pay. Demo fees: new patient exam $95, cleaning package $120, whitening consult complimentary.",
       prep: "For dental visits, bring dental insurance, photo ID, medication list, and previous x-rays if available. Noise-canceling headphones are available."
     },
-    {
-      match: ["harbor-wellness-dermatology", "Harbor Wellness Dermatology"],
+    "demo-harbor-wellness-dermatology": {
       receptionist: "Cove",
       name: "Harbor Wellness Dermatology",
-      hours: "Harbor Wellness Dermatology is open Monday from 10:00 AM to 6:00 PM, Tuesday–Thursday from 8:30 AM to 5:30 PM, and Friday from 8:30 AM to 2:00 PM. It is closed on weekends.",
-      booking: "I can help request a skin visit at Harbor Wellness Dermatology. Please share your name, concern, preferred visit type, preferred date/time, and best contact. Demo phone: (555) 010-7890.",
+      hours: "Harbor Wellness Dermatology is open Monday from 10:00 AM to 6:00 PM, Tuesday–Thursday from 8:30 AM to 5:30 PM, and Friday from 8:30 AM to 2:00 PM. We’re closed on weekends.",
+      booking: "I can help request a skin visit at Harbor Wellness Dermatology. Please share your name, concern, preferred visit type, preferred date/time, and best contact. For this demo page, you can also call (555) 010-7890.",
       urgent: "Urgent skin changes, infection signs, severe allergic reactions, or rapidly worsening symptoms may require immediate care. If symptoms feel serious, call emergency services or go to urgent care/ER.",
       services: "Harbor offers full-body skin exams, acne and rosacea plans, eczema and rash visits, spot checks, minor procedure consults, and cosmetic skincare consults.",
       address: "Harbor Wellness Dermatology is at 700 Harbor Point Road, Suite 5A. The clinic has elevator access and is wheelchair friendly.",
       insurance: "Dummy accepted plans include HarborHealth PPO, ClearSkin Select, MetroCare, Medicare demo plans, and self-pay. Demo self-pay: medical skin exam $165; cosmetic consult $85.",
       prep: "Bring ID, insurance card, medication list, skincare product list, and photos of flare-ups if helpful. Avoid heavy makeup for facial skin checks."
     }
-  ];
+  };
 
   const css = `
     .stormeai-launcher,
@@ -289,6 +286,22 @@
     addMessage("patient", message);
     const thinking = addMessage("assistant", "Checking clinic information…");
     try {
+      if (config.chatMode === "demo" || demoClinics[config.clinicId]) {
+        const data = getDemoResponse(message);
+        sessionId = sessionId || `demo-${Date.now()}`;
+        localStorage.setItem(`stormeai:${config.clinicId}:session`, sessionId);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        thinking.textContent = data.reply;
+        if (data.bookingUrl) {
+          const link = document.createElement("a");
+          link.className = "stormeai-book-link";
+          link.href = data.bookingUrl;
+          link.textContent = "Request appointment";
+          thinking.appendChild(link);
+        }
+        return;
+      }
+
       const endpoint = config.chatMode === "local-ollama" ? config.localChatUrl : `${config.apiUrl}/functions/v1/public-chat`;
       const payload = JSON.stringify({ clinicId: config.clinicId, receptionistId: config.receptionistId, sessionId, message, appUrl: config.appUrl });
       const response = await fetch(endpoint, config.chatMode === "local-ollama"
@@ -298,8 +311,7 @@
       if (!response.ok) throw new Error(data.error || "Chat failed");
       sessionId = data.sessionId;
       localStorage.setItem(`stormeai:${config.clinicId}:session`, sessionId);
-      const pageFallback = getPageDemoFallback(message, data.reply);
-      thinking.textContent = pageFallback || data.reply;
+      thinking.textContent = data.reply;
       if (data.bookingUrl) {
         const link = document.createElement("a");
         link.className = "stormeai-book-link";
@@ -315,23 +327,19 @@
   }
 
 
-  function getPageDemoFallback(message, backendReply) {
-    const pageText = `${location.href} ${document.title} ${document.body?.innerText || ""}`;
-    const clinic = pageDemoClinics.find((item) => item.match.some((term) => pageText.includes(term)));
-    if (!clinic) return null;
-
-    const backendLooksUnhelpful = !backendReply || /don.t have confirmed|can.t confirm|approved clinic knowledge|route it to clinic staff|saved yet/i.test(String(backendReply));
-    if (!backendLooksUnhelpful) return null;
-
+  function getDemoResponse(message) {
+    const clinic = demoClinics[config.clinicId] || demoClinics["demo-evergreen-family-clinic"];
     const lower = String(message || "").toLowerCase();
-    if (/hour|open|close|schedule|time/.test(lower)) return clinic.hours;
-    if (/book|appointment|schedule|visit|available|availability/.test(lower)) return clinic.booking;
-    if (/urgent|emergency|pain|bleed|bleeding|swelling|trauma|severe|infection|allergic/.test(lower)) return clinic.urgent;
-    if (/service|treat|offer|cleaning|exam|vaccine|acne|rash|mole|crown|filling|telehealth|procedure/.test(lower)) return clinic.services;
-    if (/address|where|location|parking|transit|find/.test(lower)) return clinic.address;
-    if (/insurance|payment|pay|fee|cost|price|self-pay|plan/.test(lower)) return clinic.insurance;
-    if (/prepare|bring|first visit|before|forms|x-ray|records/.test(lower)) return clinic.prep;
-    return `Hi! I’m ${clinic.receptionist}, the demo AI receptionist for ${clinic.name}. I can answer this dummy page’s details about hours, services, location, insurance, visit prep, urgent guidance, or appointment requests.`;
+    let reply;
+    if (/hour|open|close|schedule|time/.test(lower)) reply = clinic.hours;
+    else if (/book|appointment|schedule|visit|available|availability/.test(lower)) reply = clinic.booking;
+    else if (/urgent|emergency|pain|bleed|bleeding|swelling|trauma|severe|infection|allergic/.test(lower)) reply = clinic.urgent;
+    else if (/service|treat|offer|cleaning|exam|vaccine|acne|rash|mole|crown|filling|telehealth|procedure/.test(lower)) reply = clinic.services;
+    else if (/address|where|location|parking|transit|find/.test(lower)) reply = clinic.address;
+    else if (/insurance|payment|pay|fee|cost|price|self-pay|plan/.test(lower)) reply = clinic.insurance;
+    else if (/prepare|bring|first visit|before|forms|x-ray|records/.test(lower)) reply = clinic.prep;
+    else reply = `Hi! I’m ${clinic.receptionist}, the demo AI receptionist for ${clinic.name}. I can answer dummy page questions about hours, services, location, insurance, visit prep, urgent guidance, or appointment requests. What would you like to know?`;
+    return { reply, bookingUrl: /book|appointment|schedule|visit/.test(lower) ? "#book" : undefined };
   }
 
   function addMessage(sender, body) {

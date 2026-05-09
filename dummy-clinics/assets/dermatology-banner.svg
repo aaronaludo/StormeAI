@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-label="Illustration of dermatology skincare bottles and coastal shapes">
+  <defs>
+    <linearGradient id="sand" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff4df"/><stop offset="1" stop-color="#ffd9cb"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#2b9eac"/><stop offset="1" stop-color="#9ad9d4"/></linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff8f77"/><stop offset="1" stop-color="#ffce91"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#9e5d4f" flood-opacity=".18"/></filter>
+  </defs>
+  <rect width="1200" height="720" fill="url(#sand)"/>
+  <path d="M0 190c210 90 325-72 540 16s335 90 660-38v184c-235 72-405 54-610-12C328 255 205 373 0 282z" fill="url(#sea)" opacity=".75"/>
+  <path d="M0 530c200-68 340-45 520 0 240 60 410 34 680-72v262H0z" fill="#fff" opacity=".55"/>
+  <g filter="url(#shadow)">
+    <rect x="165" y="270" width="182" height="286" rx="34" fill="#fff"/>
+    <rect x="205" y="214" width="102" height="78" rx="18" fill="#2b9eac"/>
+    <rect x="205" y="348" width="102" height="102" rx="51" fill="url(#coral)" opacity=".85"/>
+    <rect x="430" y="202" width="224" height="355" rx="44" fill="#fffaf1"/>
+    <rect x="488" y="148" width="108" height="70" rx="20" fill="#ff8f77"/>
+    <path d="M506 346c34-88 92-86 125 0-18 21-96 23-125 0z" fill="#2b9eac" opacity=".85"/>
+    <rect x="735" y="316" width="260" height="240" rx="48" fill="#ffffff"/>
+    <circle cx="865" cy="414" r="62" fill="#ffd9cb"/>
+    <path d="M835 414h60M865 384v60" stroke="#ff8f77" stroke-width="16" stroke-linecap="round"/>
+  </g>
+  <g fill="#2b9eac" opacity=".28"><circle cx="105" cy="115" r="48"/><circle cx="1058" cy="580" r="70"/><circle cx="1000" cy="88" r="22"/></g>
+  <text x="90" y="640" fill="#264653" font-family="Inter, Arial" font-size="42" font-weight="900">Harbor Wellness Dermatology</text>
+</svg>

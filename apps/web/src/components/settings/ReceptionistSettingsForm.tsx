@@ -44,12 +44,9 @@ export function ReceptionistSettingsForm({ value, loading, saving, status, onCha
       </div>
 
       <div className="settings-section-card">
-        <SectionHeader icon={BrainCircuit} title="AI provider routing" subtitle="Choose the model StormeAI should use for live chat tests." />
+        <SectionHeader icon={BrainCircuit} title="Default AI Model" subtitle="StormeAI automatically uses the Default AI Model for live chat tests." />
         <div className="form-grid">
-          <label>Default provider<select value={settings.defaultProvider} onChange={(e) => update({ defaultProvider: e.target.value as ReceptionistSettingsRecord["defaultProvider"] })}><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="anthropic">Claude</option></select></label>
-          <label>Default model<input value={settings.defaultModel} onChange={(e) => update({ defaultModel: e.target.value })} placeholder="qwen2.5:7b" /></label>
-          <label>Fallback provider<select value={settings.fallbackProvider} onChange={(e) => update({ fallbackProvider: e.target.value as ReceptionistSettingsRecord["fallbackProvider"] })}><option value="none">None</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="anthropic">Claude</option></select></label>
-          <label>Fallback model<input value={settings.fallbackModel} onChange={(e) => update({ fallbackModel: e.target.value })} placeholder="Optional" /></label>
+          <label>Model<input value="Default AI Model" readOnly /></label>
         </div>
       </div>
 

@@ -32,11 +32,13 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   const citations = await retrieveKnowledge(input.clinicId, patientMessage);
   const emergency = isEmergency(patientMessage);
   const handoff = wantsHandoff(patientMessage);
+  const bookingUrl = buildBookingUrl(input, sessionId);
   const deterministicReply = answerCommonReceptionistQuestion(patientMessage, context);
   if (deterministicReply) {
-    await insertMessage(input.clinicId, sessionId, "assistant", deterministicReply, citations, { mode: "rule", reason: "common_receptionist_question" });
+    const reply = wantsBooking(patientMessage) ? "I can help request an appointment. Please tap Redirect to enter the details clearly." : deterministicReply;
+    await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode: "rule", reason: "common_receptionist_question", booking_url: wantsBooking(patientMessage) ? bookingUrl : undefined });
     await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
-    return { sessionId, reply: deterministicReply, mode: "rule", citations, receptionistName: context.name };
+    return { sessionId, reply, mode: "rule", citations, receptionistName: context.name, bookingUrl: wantsBooking(patientMessage) ? bookingUrl : undefined };
   }
 
   const prompt = buildPrompt(context, citations);
@@ -44,7 +46,7 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   let reply = "";
   let mode = "ai";
   try {
-    const completion = await createChatCompletion({ provider: context.default_provider || "openai", model: context.default_model || undefined, messages: [{ role: "system", content: prompt }, { role: "user", content: patientMessage }], temperature: 0.2 });
+    const completion = await createChatCompletion({ provider: "ollama", model: "qwen2.5:7b", messages: [{ role: "system", content: prompt }, { role: "user", content: patientMessage }], temperature: 0.2 });
     reply = completion.content.trim() || safeFallback(patientMessage, citations);
     await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode, provider: completion.provider, model: completion.model });
   } catch (error) {
@@ -56,6 +58,14 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
 
   return { sessionId, reply, mode, citations, receptionistName: context.name };
+}
+
+function buildBookingUrl(input: PublicChatInput, sessionId: string) {
+  const appUrl = typeof input.metadata?.app_url === "string" && input.metadata.app_url ? input.metadata.app_url.replace(/\/$/, "") : "";
+  const origin = appUrl || (typeof input.metadata?.origin === "string" && input.metadata.origin ? input.metadata.origin.replace(/\/$/, "") : "");
+  const params = new URLSearchParams({ sessionId });
+  if (input.receptionistId) params.set("receptionistId", input.receptionistId);
+  return `${origin}/book/${input.clinicId}?${params.toString()}`;
 }
 
 async function loadReceptionist(clinicId: string, receptionistId?: string) {
@@ -97,6 +107,124 @@ async function retrieveKnowledge(clinicId: string, message: string) {
   return (data || []).filter((item: any) => item.content).map((item: any) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
 }
 
+
+async function maybeCreateAppointmentRequest(clinicId: string, sessionId: string, latestMessage: string) {
+  if (!wantsBooking(latestMessage)) return null;
+
+  const { data: existing } = await supabase
+    .from("appointments")
+    .select("id")
+    .eq("clinic_id", clinicId)
+    .eq("source", "chat")
+    .ilike("patient_note", `%Chat session: ${sessionId}%`)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return null;
+
+  const { data: messages } = await supabase
+    .from("chat_messages")
+    .select("body")
+    .eq("clinic_id", clinicId)
+    .eq("session_id", sessionId)
+    .eq("sender", "patient")
+    .order("created_at", { ascending: true })
+    .limit(12);
+
+  const transcript = [...(messages || []).map((message: any) => String(message.body || "")), latestMessage].join("\n");
+  const details = extractAppointmentDetails(transcript);
+  if (!details.patientName || !details.contact || !details.service || !details.preferredTime) return null;
+
+  const { data: patient, error: patientError } = await supabase.from("patients").insert({
+    clinic_id: clinicId,
+    full_name: details.patientName,
+    email: details.contact.includes("@") ? details.contact : null,
+    phone: details.contact.includes("@") ? null : details.contact,
+    metadata: { source: "chat", chat_session_id: sessionId },
+  }).select("id").single();
+  if (patientError) throw new Error(`Create patient failed: ${patientError.message}`);
+
+  const note = [
+    `Service: ${details.service}`,
+    `Preferred time: ${details.preferredTime}`,
+    `Contact: ${details.contact}`,
+    `Chat session: ${sessionId}`,
+    `Patient message: ${latestMessage}`,
+  ].join("\n");
+
+  const { data: appointment, error } = await supabase.from("appointments").insert({
+    clinic_id: clinicId,
+    patient_id: patient.id,
+    status: "requested",
+    requested_start_at: details.requestedStartAt,
+    patient_note: note,
+    source: "chat",
+  }).select("id").single();
+  if (error) throw new Error(`Create appointment failed: ${error.message}`);
+
+  return { appointmentId: appointment.id as string, ...details };
+}
+
+function extractAppointmentDetails(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const email = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const phone = normalized.match(/(?:\+?63|0)?\s?9\d{2}[\s.-]?\d{3}[\s.-]?\d{4}/)?.[0]?.replace(/\s+/g, " ");
+  const contact = email || phone || "";
+  const patientName = firstMatch(normalized, [
+    /(?:patient\s*name|name)\s*(?:is|:)?\s*([A-Z][A-Za-z .'-]{1,60})(?=\s+(?:contact|phone|email|service|for|on|at|preferred)|[,.;]|$)/i,
+    /(?:i am|i'm|ako si)\s+([A-Z][A-Za-z .'-]{1,60})(?=\s+(?:contact|phone|email|service|for|on|at|preferred)|[,.;]|$)/i,
+  ]);
+  const service = firstMatch(normalized, [
+    /(?:service|for)\s*(?:is|:)?\s*([A-Za-z][A-Za-z /'-]{2,60})(?=\s+(?:on|at|preferred|tomorrow|today|next|contact|phone|email)|[,.;]|$)/i,
+    /\b(dental cleaning|consultation|checkup|cleaning|derma consultation|lab test)\b/i,
+  ]);
+  const preferredTime = firstMatch(normalized, [
+    /(?:preferred(?: date\/time| time| date)?|appointment(?: date| time)?|schedule)\s*(?:is|:)?\s*([^.;,]{3,80})/i,
+    /\b((?:today|tomorrow|next\s+[A-Za-z]+|\d{4}-\d{1,2}-\d{1,2}|[A-Za-z]+\s+\d{1,2})(?:\s+(?:at\s*)?\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?)\b/i,
+  ]);
+
+  return {
+    patientName: cleanValue(patientName),
+    contact: cleanValue(contact),
+    service: cleanValue(service),
+    preferredTime: cleanValue(preferredTime),
+    requestedStartAt: parsePreferredTime(preferredTime),
+  };
+}
+
+function firstMatch(text: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern)?.[1];
+    if (match) return match;
+  }
+  return "";
+}
+
+function cleanValue(value: string) {
+  return String(value || "").replace(/\s+/g, " ").replace(/[,.]$/, "").trim();
+}
+
+function parsePreferredTime(value: string) {
+  const text = String(value || "").toLowerCase();
+  const now = new Date();
+  let date: Date | null = null;
+  if (text.includes("tomorrow")) date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  else if (text.includes("today")) date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  else {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) date = new Date(parsed);
+  }
+  if (!date) return null;
+  const time = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  if (time) {
+    let hour = Number(time[1]);
+    const minute = Number(time[2] || 0);
+    if (time[3] === "pm" && hour < 12) hour += 12;
+    if (time[3] === "am" && hour === 12) hour = 0;
+    date.setHours(hour, minute, 0, 0);
+  }
+  return date.toISOString();
+}
+
 function answerCommonReceptionistQuestion(message: string, context: any) {
   const lower = message.toLowerCase();
   const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
@@ -116,7 +244,7 @@ function answerCommonReceptionistQuestion(message: string, context: any) {
   }
 
   if (wantsBooking(message)) {
-    return "I can help request an appointment. Please send the patient name, contact number or email, preferred service, and preferred date/time. Clinic staff will confirm availability.";
+    return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
   }
 
   if (isEmergency(message)) {
@@ -166,54 +294,21 @@ function buildPrompt(context: any, citations: Array<{ title?: string; content: s
 
 type AiRequest = { provider: string; model?: string; messages: Array<{ role: string; content: string }>; temperature: number };
 async function createChatCompletion(request: AiRequest) {
-  const requestedProvider = request.provider || Deno.env.get("AI_DEFAULT_PROVIDER") || "openai";
-  const provider = normalizeProviderForEdge(requestedProvider);
-  if (provider === "ollama") return ollamaChat(request);
-  if (provider === "anthropic") return anthropicChat(request);
-  return openAiChat({ ...request, provider: "openai", model: request.model && requestedProvider === "openai" ? request.model : undefined });
-}
-
-function normalizeProviderForEdge(provider: string) {
-  if (provider !== "ollama") return provider;
-  const baseUrl = Deno.env.get("OLLAMA_BASE_URL") || "";
-  const isLocalOnly = !baseUrl || baseUrl.includes("127.0.0.1") || baseUrl.includes("localhost");
-  return isLocalOnly ? "openai" : "ollama";
+  return ollamaChat({ ...request, provider: "ollama", model: "qwen2.5:7b" });
 }
 
 async function ollamaChat(request: AiRequest) {
   const baseUrl = Deno.env.get("OLLAMA_BASE_URL") || "http://127.0.0.1:11434";
-  const model = request.model || Deno.env.get("OLLAMA_MODEL") || "qwen2.5:7b";
+  const model = "qwen2.5:7b";
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: request.messages, stream: false, options: { temperature: request.temperature } }) });
   const raw = await response.json().catch(() => null);
   if (!response.ok) throw new Error(raw?.error || "Ollama request failed");
   return { provider: "ollama", model, content: raw?.message?.content || "" };
 }
 
-async function openAiChat(request: AiRequest) {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
-  const model = request.model || Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
-  const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: request.messages, temperature: request.temperature }) });
-  const raw = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(raw?.error?.message || "OpenAI request failed");
-  return { provider: "openai", model, content: raw?.choices?.[0]?.message?.content || "" };
-}
-
-async function anthropicChat(request: AiRequest) {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
-  const model = request.model || Deno.env.get("ANTHROPIC_MODEL") || "claude-3-5-haiku-latest";
-  const system = request.messages.find((message) => message.role === "system")?.content;
-  const messages = request.messages.filter((message) => message.role !== "system");
-  const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" }, body: JSON.stringify({ model, system, messages, max_tokens: 800, temperature: request.temperature }) });
-  const raw = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(raw?.error?.message || "Anthropic request failed");
-  return { provider: "anthropic", model, content: raw?.content?.map((part: { text?: string }) => part.text || "").join("\n") || "" };
-}
-
 function safeFallback(message: string, citations: Array<{ content: string }>, providerError?: string) {
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
-  if (wantsBooking(message)) return "I can help request an appointment. Please share the patient name, contact number or email, preferred service, and preferred date/time. Clinic staff will confirm availability.";
+  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
   if (citations.length) return `I found clinic-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
   return providerError ? "I can’t confirm that from approved clinic knowledge right now. I can still collect your concern and route it to clinic staff. What would you like help with?" : "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
 }

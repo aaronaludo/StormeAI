@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
 import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
@@ -49,16 +49,16 @@ type Metric = {
 };
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Chats", path: "/chats", icon: MessageSquareText },
-  { label: "Clinics", path: "/clinics", icon: ClipboardList },
-  { label: "AI Receptionist", path: "/ai-receptionist", icon: Bot },
-  { label: "Knowledge Base", path: "/knowledge-base", icon: DatabaseZap },
-  { label: "Appointments", path: "/appointments", icon: CalendarCheck },
-  { label: "Integrations", path: "/integrations", icon: Globe2 },
-  { label: "Billing", path: "/billing", icon: WalletCards },
-  { label: "Safety", path: "/safety", icon: ShieldCheck },
-  { label: "Account Settings", path: "/account", icon: Settings2 },
+  { label: "Dashboard", path: "dashboard", icon: LayoutDashboard },
+  { label: "Chats", path: "chats", icon: MessageSquareText },
+  { label: "Clinics", path: "clinics", icon: ClipboardList },
+  { label: "AI Receptionist", path: "ai-receptionist", icon: Bot },
+  { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
+  { label: "Appointments", path: "appointments", icon: CalendarCheck },
+  { label: "Integrations", path: "integrations", icon: Globe2 },
+  { label: "Billing", path: "billing", icon: WalletCards },
+  { label: "Safety", path: "safety", icon: ShieldCheck },
+  { label: "Account Settings", path: "account", icon: Settings2 },
 ];
 
 const metrics: Metric[] = [
@@ -78,7 +78,7 @@ const conversations = [
 const setupItems = [
   "Receptionist personality configured",
   "No-diagnosis safety rules enabled",
-  "Ollama qwen2.5:7b default route active",
+  "Default AI Model route active",
   "Knowledge base needs 3 more FAQs",
 ];
 
@@ -136,15 +136,15 @@ type ChatMessageRow = {
 
 
 const providerCards = [
-  { name: "Ollama", model: "qwen2.5:7b", tag: "Default local", active: true },
-  { name: "OpenAI", model: "Optional cloud fallback", tag: "Disabled", active: false },
-  { name: "Claude", model: "Premium reasoning fallback", tag: "Disabled", active: false },
+  { name: "Default AI Model", model: "Local StormeAI model", tag: "Active", active: true },
 ];
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/book/:clinicId" element={<BookingRequestPage />} />
+
         <Route element={<PublicRoute />}>
           <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
           <Route path="/auth/sign-in" element={<AuthPage mode="sign-in" />} />
@@ -157,27 +157,42 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardRedirect />} />
             <Route path="/dashboard" element={<DashboardRedirect />} />
-            <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
-            <Route path="/chats" element={<ChatsPage />} />
+            <Route path="/chats" element={<LegacyClinicPageRedirect page="chats" />} />
             <Route path="/clinics" element={<ClinicOnboardingPage />} />
-            <Route path="/ai-receptionist" element={<ReceptionistPage />} />
-            <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
-            <Route path="/appointments" element={<AppointmentsPage />} />
-            <Route path="/integrations" element={<IntegrationsPage />} />
-            <Route path="/billing" element={<BillingPage />} />
-            <Route path="/safety" element={<SafetyPage />} />
-            <Route path="/account" element={<AccountSettingsPage />} />
+            <Route path="/ai-receptionist" element={<LegacyClinicPageRedirect page="ai-receptionist" />} />
+            <Route path="/knowledge-base" element={<LegacyClinicPageRedirect page="knowledge-base" />} />
+            <Route path="/appointments" element={<LegacyClinicPageRedirect page="appointments" />} />
+            <Route path="/integrations" element={<LegacyClinicPageRedirect page="integrations" />} />
+            <Route path="/billing" element={<LegacyClinicPageRedirect page="billing" />} />
+            <Route path="/safety" element={<LegacyClinicPageRedirect page="safety" />} />
+            <Route path="/account" element={<LegacyClinicPageRedirect page="account" />} />
+            <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
+            <Route path="/chats/:clinicId" element={<ChatsPage />} />
+            <Route path="/clinics/:clinicId" element={<ClinicOnboardingPage />} />
+            <Route path="/ai-receptionist/:clinicId" element={<ReceptionistPage />} />
+            <Route path="/knowledge-base/:clinicId" element={<KnowledgeBasePage />} />
+            <Route path="/appointments/:clinicId" element={<AppointmentsPage />} />
+            <Route path="/integrations/:clinicId" element={<IntegrationsPage />} />
+            <Route path="/billing/:clinicId" element={<BillingPage />} />
+            <Route path="/safety/:clinicId" element={<SafetyPage />} />
+            <Route path="/account/:clinicId" element={<AccountSettingsPage />} />
           </Route>
         </Route>
 
         <Route path="/onboarding" element={<Navigate to="/clinics" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<DashboardRedirect />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 function AppLayout() {
+  const { clinicId } = useParams();
+
+  useEffect(() => {
+    if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
+  }, [clinicId]);
+
   return (
     <div className="app-shell">
       <Sidebar />
@@ -233,7 +248,7 @@ function PublicRoute() {
   const { loading, session } = useAuthState();
 
   if (loading) return <RouteLoading label="Loading secure auth…" />;
-  if (session && location.pathname !== "/auth/update-password") return <Navigate to="/dashboard" replace />;
+  if (session && location.pathname !== "/auth/update-password") return <DashboardRedirect />;
 
   return <Outlet />;
 }
@@ -288,7 +303,7 @@ function FloatingPatientChat() {
           <div className="floating-chat-selector">
             <label>AI receptionist</label>
             <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-              {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
+              {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · Default AI Model</option>)}
             </select>
           </div>
           <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} receptionistName={selectedReceptionistName} />
@@ -304,12 +319,12 @@ function FloatingPatientChat() {
 
 function Sidebar() {
   const navigate = useNavigate();
+  const { clinicId } = useParams();
   const { session } = useAuthState();
-  const [dashboardClinicId, setDashboardClinicId] = useState(getWorkspaceSelection().clinicId || "");
+  const [activeClinicId, setActiveClinicId] = useState(clinicId || getWorkspaceSelection().clinicId || "");
 
-  useEffect(() => subscribeWorkspaceSelection(() => setDashboardClinicId(getWorkspaceSelection().clinicId || "")), []);
-
-  const dashboardPath = dashboardClinicId ? `/dashboard/${dashboardClinicId}` : "/dashboard";
+  useEffect(() => subscribeWorkspaceSelection(() => setActiveClinicId(getWorkspaceSelection().clinicId || "")), []);
+  useEffect(() => { if (clinicId) setActiveClinicId(clinicId); }, [clinicId]);
 
   async function logout() {
     await supabase?.auth.signOut();
@@ -330,7 +345,7 @@ function Sidebar() {
 
       <nav className="nav-list">
         {navItems.map((item) => {
-          const path = item.path === "/dashboard" ? dashboardPath : item.path;
+          const path = activeClinicId ? clinicPagePath(activeClinicId, item.path) : "/dashboard";
           return (
             <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label}>
               <item.icon size={18} />
@@ -384,8 +399,7 @@ function ClinicSwitcher() {
   function switchClinic(clinicId: string) {
     setSelected(clinicId);
     setSelectedClinic(clinicId);
-    if (window.location.pathname.startsWith("/dashboard")) navigate(`/dashboard/${clinicId}`);
-    else window.location.reload();
+    navigate(clinicPagePath(clinicId, currentClinicPageSlug(window.location.pathname)), { replace: true });
   }
 
   const activeClinic = clinics.find((clinic) => clinic.clinicId === selected);
@@ -408,9 +422,25 @@ function PageHeader(_props: { eyebrow: string; title: string; action?: string })
   return null;
 }
 
+function clinicPagePath(clinicId: string, page: string) {
+  return `/${page.replace(/^\//, "")}/${clinicId}`;
+}
+
+function currentClinicPageSlug(pathname: string) {
+  const page = pathname.split("/").filter(Boolean)[0];
+  const known = navItems.some((item) => item.path === page);
+  return known ? page : "dashboard";
+}
+
 function DashboardRedirect() {
   const clinicId = getWorkspaceSelection().clinicId;
-  return <Navigate to={clinicId ? `/dashboard/${clinicId}` : "/clinics"} replace />;
+  return <Navigate to={clinicId ? clinicPagePath(clinicId, "dashboard") : "/clinics"} replace />;
+}
+
+function LegacyClinicPageRedirect({ page }: { page: string }) {
+  const params = useParams();
+  const clinicId = params.clinicId || getWorkspaceSelection().clinicId;
+  return <Navigate to={clinicId ? clinicPagePath(clinicId, page) : "/clinics"} replace />;
 }
 
 function DashboardPage() {
@@ -440,6 +470,8 @@ function DashboardPage() {
     void loadDashboardStats();
   }, [clinicId]);
 
+  const activeClinicId = clinicId || getWorkspaceSelection().clinicId || "";
+
   return (
     <>
       <section className="hero-grid">
@@ -449,7 +481,7 @@ function DashboardPage() {
             <h2>Answer patient questions and book appointments 24/7.</h2>
             <p>StormeAI gives clinics a safe, configurable AI receptionist that answers from approved knowledge, collects booking details, and escalates sensitive cases to staff.</p>
             <div className="hero-actions">
-              <NavLink className="primary-button" to="/ai-receptionist">Review setup <ArrowRight size={17} /></NavLink>
+              <NavLink className="primary-button" to={clinicPagePath(activeClinicId, "ai-receptionist")}>Review setup <ArrowRight size={17} /></NavLink>
               <button className="ghost-button" type="button" onClick={() => document.querySelector<HTMLButtonElement>(".floating-chat-button")?.click()}>View patient widget</button>
             </div>
           </div>
@@ -457,7 +489,7 @@ function DashboardPage() {
         <HealthCard />
       </section>
 
-      <section className="metrics-grid analytics-grid">
+      <section className="metrics-grid">
         <MetricCard label="Chat messages" value={String(stats.chats)} delta={status} tone="blue" />
         <MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Total patient conversations" tone="teal" />
         <MetricCard label="Appointments" value={String(stats.appointments)} delta="Booking requests" tone="green" />
@@ -573,7 +605,7 @@ function ReceptionistPage() {
 
   return (
     <>
-      <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, providers, and behavior" />
+      <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, Default AI Model, and behavior" />
       <section className="receptionist-top-strip">
         <div className="receptionist-switcher-bar compact">
           <div>
@@ -581,7 +613,7 @@ function ReceptionistPage() {
             <span>Switch personas for the selected clinic.</span>
           </div>
           <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · {item.defaultProvider}/{item.defaultModel}</option>)}
+            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · Default AI Model</option>)}
           </select>
           <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
         </div>
@@ -609,7 +641,7 @@ function ReceptionistPage() {
             </div>
             <div className="prompt-box live-preview modal-preview">{promptPreview}</div>
             <div className="config-list compact-list">
-              <ConfigList items={[["Provider", `${settings.defaultProvider} · ${settings.defaultModel}`], ["Fallback", settings.fallbackProvider === "none" ? "Disabled" : `${settings.fallbackProvider} · ${settings.fallbackModel || "default"}`], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
+              <ConfigList items={[["Model", "Default AI Model"], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
             </div>
           </div>
         </div>
@@ -876,6 +908,67 @@ function KnowledgeBasePage() {
   );
 }
 
+
+function BookingRequestPage() {
+  const { clinicId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("sessionId") || "";
+  const [form, setForm] = useState({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
+  const [status, setStatus] = useState("Fill out the appointment details below. Clinic staff will confirm availability.");
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  async function submitAppointment(event: FormEvent) {
+    event.preventDefault();
+    if (!clinicId) return setStatus("Missing clinic ID.");
+    if (!form.patientName.trim() || !form.contact.trim() || !form.service.trim() || !form.requestedAt.trim()) {
+      return setStatus("Please complete patient name, contact, service, and preferred date/time.");
+    }
+
+    setSaving(true);
+    setStatus("Submitting appointment request…");
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const endpoint = import.meta.env.DEV ? "/stormeai-local-appointment" : `${String(supabaseUrl).replace(/\/$/, "")}/functions/v1/public-appointment`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": import.meta.env.DEV ? "text/plain;charset=UTF-8" : "application/json" },
+        body: JSON.stringify({ clinicId, sessionId, ...form }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Appointment request failed.");
+      setSubmitted(true);
+      setStatus("Appointment request sent. Clinic staff will confirm availability.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="booking-page">
+      <section className="booking-card">
+        <div className="booking-brand"><span className="brand-mark"><CalendarCheck size={24} /></span><div><p className="eyebrow">StormeAI booking request</p><h1>Request an appointment</h1></div></div>
+        <p className="empty-state">{status}</p>
+        {submitted ? (
+          <div className="success-panel"><Check size={34} /><h2>Request received</h2><p>Thank you. This is not confirmed yet — clinic staff will review and contact you.</p></div>
+        ) : (
+          <form className="appointment-form modal-form" onSubmit={submitAppointment}>
+            <label>Patient name<input value={form.patientName} onChange={(event) => setForm({ ...form, patientName: event.target.value })} placeholder="Juan Dela Cruz" /></label>
+            <label>Phone or email<input value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder="0917 123 4567 or email@example.com" /></label>
+            <label>Service requested<input value={form.service} onChange={(event) => setForm({ ...form, service: event.target.value })} placeholder="Dental cleaning, consultation, etc." /></label>
+            <label>Preferred date and time<input type="datetime-local" value={form.requestedAt} onChange={(event) => setForm({ ...form, requestedAt: event.target.value })} /></label>
+            <label>Additional note<textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional: symptoms, concerns, or special requests. Do not use this for emergencies." /></label>
+            {sessionId && <p className="empty-state">Linked to chat session: {sessionId}</p>}
+            <button className="primary-button" disabled={saving} type="submit">{saving ? "Submitting…" : "Submit appointment request"}</button>
+          </form>
+        )}
+      </section>
+    </main>
+  );
+}
+
 function AppointmentsPage() {
   const [appointments, setAppointments] = useState<AppointmentInboxRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1010,7 +1103,9 @@ function IntegrationsPage() {
   const receptionistId = getWorkspaceSelection().receptionistId || "OPTIONAL_RECEPTIONIST_UUID";
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://YOUR_SUPABASE_PROJECT.supabase.co";
   const widgetUrl = `${window.location.origin}/stormeai-widget.js`;
-  const snippet = `<script\n  async\n  src="${widgetUrl}"\n  data-api-url="${supabaseUrl}"\n  data-clinic-id="${clinicId}"\n  data-receptionist-id="${receptionistId}"\n  data-title="Clinic chat"\n  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">\n</script>`;
+  const localChatUrl = `${window.location.origin}/stormeai-local-chat`;
+  const localWidgetAttrs = import.meta.env.DEV ? `\n  data-chat-mode="local-ollama"\n  data-local-chat-url="${localChatUrl}"` : "";
+  const snippet = `<script\n  async\n  src="${widgetUrl}"\n  data-api-url="${supabaseUrl}"${localWidgetAttrs}\n  data-clinic-id="${clinicId}"\n  data-receptionist-id="${receptionistId}"\n  data-title="Clinic chat"\n  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">\n</script>`;
 
   return (
     <section className="content-grid two-one integrations-page">

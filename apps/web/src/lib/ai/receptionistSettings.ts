@@ -1,6 +1,8 @@
 import { supabase } from "../supabase";
 
-export type AiProvider = "ollama" | "openai" | "anthropic";
+export type AiProvider = "ollama";
+
+export const DEFAULT_AI_MODEL_ID = "qwen2.5:7b";
 
 export type ReceptionistOption = { receptionistId: string; clinicId: string; name: string; tone: string; defaultProvider: AiProvider; defaultModel: string; updatedAt?: string };
 
@@ -14,8 +16,6 @@ export type ReceptionistSettingsRecord = {
   baseSystemPrompt: string;
   defaultProvider: AiProvider;
   defaultModel: string;
-  fallbackProvider: AiProvider | "none";
-  fallbackModel: string;
   useApprovedKnowledgeOnly: boolean;
   offerAppointmentWhenRelevant: boolean;
   emergencyHandoffEnabled: boolean;
@@ -33,9 +33,7 @@ export const defaultReceptionistSettings: ReceptionistSettingsRecord = {
   languageStyle: "English, with Taglish when appropriate",
   baseSystemPrompt: "",
   defaultProvider: "ollama",
-  defaultModel: "qwen2.5:7b",
-  fallbackProvider: "none",
-  fallbackModel: "",
+  defaultModel: DEFAULT_AI_MODEL_ID,
   useApprovedKnowledgeOnly: true,
   offerAppointmentWhenRelevant: true,
   emergencyHandoffEnabled: true,
@@ -57,8 +55,6 @@ type ReceptionistRpcRow = {
   base_system_prompt?: string | null;
   default_provider?: AiProvider;
   default_model?: string;
-  fallback_provider?: AiProvider | null;
-  fallback_model?: string | null;
   use_approved_knowledge_only?: boolean;
   offer_appointment_when_relevant?: boolean;
   emergency_handoff_enabled?: boolean;
@@ -91,10 +87,10 @@ export async function saveReceptionistSettings(settings: ReceptionistSettingsRec
     receptionist_tone: settings.tone,
     receptionist_language_style: settings.languageStyle,
     receptionist_base_system_prompt: settings.baseSystemPrompt,
-    receptionist_default_provider: settings.defaultProvider,
-    receptionist_default_model: settings.defaultModel,
-    receptionist_fallback_provider: settings.fallbackProvider === "none" ? null : settings.fallbackProvider,
-    receptionist_fallback_model: settings.fallbackModel || null,
+    receptionist_default_provider: "ollama",
+    receptionist_default_model: DEFAULT_AI_MODEL_ID,
+    receptionist_fallback_provider: null,
+    receptionist_fallback_model: null,
     receptionist_use_approved_knowledge_only: settings.useApprovedKnowledgeOnly,
     receptionist_offer_appointment_when_relevant: settings.offerAppointmentWhenRelevant,
     receptionist_emergency_handoff_enabled: settings.emergencyHandoffEnabled,
@@ -125,8 +121,8 @@ export async function listReceptionists(clinicId: string): Promise<ReceptionistO
     clinicId: row.clinic_id,
     name: row.name,
     tone: row.tone,
-    defaultProvider: row.default_provider,
-    defaultModel: row.default_model,
+    defaultProvider: "ollama",
+    defaultModel: DEFAULT_AI_MODEL_ID,
     updatedAt: row.updated_at,
   }));
 }
@@ -173,10 +169,8 @@ function mapRpcRow(row: ReceptionistRpcRow): ReceptionistSettingsRecord {
     tone: row.tone || defaultReceptionistSettings.tone,
     languageStyle: row.language_style || defaultReceptionistSettings.languageStyle,
     baseSystemPrompt: row.base_system_prompt || "",
-    defaultProvider: row.default_provider || defaultReceptionistSettings.defaultProvider,
-    defaultModel: row.default_model || defaultReceptionistSettings.defaultModel,
-    fallbackProvider: row.fallback_provider || "none",
-    fallbackModel: row.fallback_model || "",
+    defaultProvider: "ollama",
+    defaultModel: DEFAULT_AI_MODEL_ID,
     useApprovedKnowledgeOnly: row.use_approved_knowledge_only ?? true,
     offerAppointmentWhenRelevant: row.offer_appointment_when_relevant ?? true,
     emergencyHandoffEnabled: row.emergency_handoff_enabled ?? true,

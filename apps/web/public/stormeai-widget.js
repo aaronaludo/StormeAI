@@ -4,13 +4,16 @@
     clinicId: currentScript?.dataset.clinicId || window.StormeAI?.clinicId,
     receptionistId: currentScript?.dataset.receptionistId || window.StormeAI?.receptionistId,
     apiUrl: (currentScript?.dataset.apiUrl || window.StormeAI?.apiUrl || "").replace(/\/$/, ""),
+    chatMode: currentScript?.dataset.chatMode || window.StormeAI?.chatMode || "edge",
+    localChatUrl: currentScript?.dataset.localChatUrl || window.StormeAI?.localChatUrl || (currentScript?.src ? new URL("/stormeai-local-chat", currentScript.src).toString() : "http://localhost:5173/stormeai-local-chat"),
+    appUrl: (currentScript?.dataset.appUrl || window.StormeAI?.appUrl || (currentScript?.src ? new URL("/", currentScript.src).toString() : window.location.origin)).replace(/\/$/, ""),
     title: currentScript?.dataset.title || window.StormeAI?.title || "Clinic chat",
     greeting: currentScript?.dataset.greeting || window.StormeAI?.greeting || "Hi! I’m the clinic AI receptionist. How can I help?",
     accent: currentScript?.dataset.accent || window.StormeAI?.accent || "#2563eb",
   };
 
-  if (!config.clinicId || !config.apiUrl) {
-    console.warn("StormeAI widget needs data-clinic-id and data-api-url.");
+  if (!config.clinicId || (config.chatMode !== "local-ollama" && !config.apiUrl)) {
+    console.warn("StormeAI widget needs data-clinic-id and data-api-url, unless data-chat-mode is local-ollama.");
     return;
   }
 
@@ -130,6 +133,17 @@
       background: ${config.accent} !important;
       color: #fff !important;
     }
+    .stormeai-book-link {
+      display: inline-block !important;
+      margin-top: 8px !important;
+      padding: 9px 11px !important;
+      border-radius: 999px !important;
+      background: ${config.accent} !important;
+      color: #fff !important;
+      text-decoration: none !important;
+      font-size: 12px !important;
+      font-weight: 900 !important;
+    }
     .stormeai-footer {
       background: #fff !important;
       border-top: 1px solid #e2e8f0 !important;
@@ -234,12 +248,25 @@
     addMessage("patient", message);
     const thinking = addMessage("assistant", "Checking clinic information…");
     try {
-      const response = await fetch(`${config.apiUrl}/functions/v1/public-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clinicId: config.clinicId, receptionistId: config.receptionistId, sessionId, message }) });
+      const endpoint = config.chatMode === "local-ollama" ? config.localChatUrl : `${config.apiUrl}/functions/v1/public-chat`;
+      const payload = JSON.stringify({ clinicId: config.clinicId, receptionistId: config.receptionistId, sessionId, message, appUrl: config.appUrl });
+      const response = await fetch(endpoint, config.chatMode === "local-ollama"
+        ? { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: payload }
+        : { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Chat failed");
       sessionId = data.sessionId;
       localStorage.setItem(`stormeai:${config.clinicId}:session`, sessionId);
       thinking.textContent = data.reply;
+      if (data.bookingUrl) {
+        const link = document.createElement("a");
+        link.className = "stormeai-book-link";
+        link.href = new URL(data.bookingUrl, `${config.appUrl}/`).toString();
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Redirect";
+        thinking.appendChild(link);
+      }
     } catch (error) {
       thinking.textContent = error.message || "Sorry, chat is unavailable right now.";
     }

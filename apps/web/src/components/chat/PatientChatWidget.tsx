@@ -8,6 +8,7 @@ type Message = {
   id: string;
   sender: "patient" | "assistant";
   body: string;
+  bookingUrl?: string;
 };
 
 type PatientChatWidgetProps = {
@@ -52,7 +53,7 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
     try {
       const result = await sendReceptionistChatTurn({ sessionId, patientMessage: cleanBody });
       setSessionId(result.sessionId);
-      setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "assistant", body: result.reply }]);
+      setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "assistant", body: result.reply, bookingUrl: result.bookingUrl }]);
       setState(result.mode);
     } catch (error) {
       setMessages((current) => [...current, {
@@ -87,7 +88,12 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
         {messages.map((message) => (
           <div className={`widget-message ${message.sender}`} key={message.id}>
             {message.sender === "assistant" ? <Bot size={16} /> : <UserRound size={16} />}
-            <p>{message.body}</p>
+            <div className="widget-message-content">
+              <p>{message.body}</p>
+              {message.bookingUrl && (
+                <a className="widget-redirect-button" href={message.bookingUrl} target="_blank" rel="noreferrer">Redirect</a>
+              )}
+            </div>
           </div>
         ))}
         {state === "thinking" && (

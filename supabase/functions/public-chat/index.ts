@@ -18,7 +18,7 @@ Deno.serve(async (request) => {
       sessionId: body.sessionId || body.session_id || undefined,
       channel: "web_widget",
       patientMessage: String(body.message || body.patientMessage || ""),
-      metadata: { origin: request.headers.get("origin") || undefined, user_agent: request.headers.get("user-agent") || undefined },
+      metadata: { origin: request.headers.get("origin") || undefined, app_url: body.appUrl || body.app_url || undefined, user_agent: request.headers.get("user-agent") || undefined },
     });
     return json(result);
   } catch (error) {

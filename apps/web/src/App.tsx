@@ -16,6 +16,8 @@ import {
   Settings2,
   ShieldCheck,
   LogOut,
+  Plus,
+  Search,
   Sparkles,
   Stethoscope,
   Users,
@@ -721,35 +723,77 @@ function ReceptionistPage() {
   }
 
   const [promptOpen, setPromptOpen] = useState(false);
+  const activeReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
 
   return (
-    <>
-      <PageHeader eyebrow="AI Receptionist" title="Personality, prompt, Default AI Model, and behavior" />
-      <section className="receptionist-top-strip">
-        <div className="receptionist-switcher-bar compact">
-          <div>
-            <strong>AI receptionist</strong>
-            <span>Switch personas for the selected clinic.</span>
-          </div>
-          <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · Default AI Model</option>)}
-          </select>
-          <button className="ghost-button" type="button" onClick={addReceptionist}>Add receptionist</button>
+    <section className="ai-receptionist-modern-page">
+      <div className="ai-receptionist-hero">
+        <div className="ai-orb"><Bot size={38} /></div>
+        <div>
+          <span className="badge teal"><Sparkles size={14} /> StormeAI persona builder</span>
+          <h1>AI Receptionist Studio</h1>
+          <p>Design the clinic’s chat-only front desk persona, booking behavior, operating rules, and approved-knowledge boundaries.</p>
         </div>
-      </section>
+        <button className="primary-button" type="button" onClick={addReceptionist} disabled={saving}>{saving ? "Creating…" : "Add receptionist"}</button>
+      </div>
 
-      <section className="receptionist-workspace-grid single-column">
-        <Panel title="Receptionist configuration" subtitle="Dynamic settings saved to Supabase" icon={Bot}>
-          <button className="prompt-preview-trigger" type="button" onClick={() => setPromptOpen(true)}>
-            <ClipboardLike size={16} /> View live prompt preview
-          </button>
+      <section className="ai-receptionist-grid">
+        <aside className="persona-panel">
+          <div className="persona-panel-head">
+            <p className="eyebrow">Personas</p>
+            <strong>{receptionists.length} receptionist{receptionists.length === 1 ? "" : "s"}</strong>
+          </div>
+          <div className="persona-list">
+            {receptionists.length ? receptionists.map((item) => (
+              <button className={`persona-card ${item.receptionistId === selectedReceptionistId ? "active" : ""}`} key={item.receptionistId} type="button" onClick={() => void switchReceptionist(item.receptionistId)}>
+                <span className="persona-avatar">{item.name.slice(0, 1).toUpperCase()}</span>
+                <div><strong>{item.name}</strong><span>Default AI Model</span></div>
+                {item.receptionistId === selectedReceptionistId && <Check size={16} />}
+              </button>
+            )) : <p className="empty-state">No receptionist personas yet.</p>}
+          </div>
+          <div className="persona-insight-card">
+            <MessageSquareText size={20} />
+            <div><strong>Chat-only receptionist</strong><span>No diagnosis, no prescriptions, appointment requests only.</span></div>
+          </div>
+        </aside>
+
+        <main className="receptionist-config-panel">
+          <div className="config-panel-topbar">
+            <div>
+              <p className="eyebrow">Configuration</p>
+              <h2>{settings.name || activeReceptionist?.name || "Receptionist"}</h2>
+              <span>{status}</span>
+            </div>
+            <button className="ghost-button prompt-preview-trigger modern" type="button" onClick={() => setPromptOpen(true)}><ClipboardLike size={16} /> Prompt preview</button>
+          </div>
           <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
-        </Panel>
+        </main>
+
+        <aside className="ai-live-summary-panel">
+          <div className="summary-ai-card">
+            <div className="ai-pulse"><Bot size={26} /></div>
+            <h3>{settings.name || "Mia"}</h3>
+            <span>{settings.clinicName || "Selected clinic"}</span>
+          </div>
+          <div className="summary-stat-list">
+            <div><span>Model</span><strong>Default AI Model</strong></div>
+            <div><span>Knowledge mode</span><strong>{settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"}</strong></div>
+            <div><span>Booking</span><strong>{settings.offerAppointmentWhenRelevant ? "Enabled" : "Disabled"}</strong></div>
+            <div><span>Language</span><strong>{settings.languageStyle || "English / Taglish"}</strong></div>
+          </div>
+          <div className="mini-chat-preview-card">
+            <strong>Patient preview</strong>
+            <div className="mini-chat-bubble assistant">Hi! I’m {settings.name || "Mia"}, the clinic AI receptionist. How can I help?</div>
+            <div className="mini-chat-bubble patient">I want to book an appointment.</div>
+            <div className="mini-chat-bubble assistant">Please tap Redirect to enter appointment details clearly.</div>
+          </div>
+        </aside>
       </section>
 
       {promptOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Live prompt preview">
-          <div className="prompt-modal">
+          <div className="prompt-modal ai-prompt-modal">
             <div className="prompt-modal-header">
               <div>
                 <p className="eyebrow">Live prompt preview</p>
@@ -759,12 +803,12 @@ function ReceptionistPage() {
             </div>
             <div className="prompt-box live-preview modal-preview">{promptPreview}</div>
             <div className="config-list compact-list">
-              <ConfigList items={[["Model", "Default AI Model"], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Handoff", settings.humanHandoffEnabled ? "Enabled" : "Disabled"]]} />
+              <ConfigList items={[["Model", "Default AI Model"], ["Knowledge", settings.useApprovedKnowledgeOnly ? "Approved only" : "Flexible"], ["Bookings", settings.offerAppointmentWhenRelevant ? "Enabled" : "Disabled"]]} />
             </div>
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
@@ -774,6 +818,7 @@ function ChatsPage() {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("Loading chat history…");
+  const [search, setSearch] = useState("");
 
   async function loadSessions(preferredSessionId?: string) {
     const clinicId = getWorkspaceSelection().clinicId;
@@ -848,35 +893,89 @@ function ChatsPage() {
   }
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId);
+  const filteredSessions = sessions.filter((session) => [session.id, session.channel, session.status, formatChatSessionTitle(session)].join(" ").toLowerCase().includes(search.toLowerCase()));
+  const lastMessage = messages[messages.length - 1];
+  const patientMessages = messages.filter((message) => message.sender === "patient").length;
+  const assistantMessages = messages.filter((message) => message.sender === "assistant").length;
 
   return (
-    <section className="content-grid chat-history-grid">
-      <Panel title="Chat sessions" subtitle={status} icon={MessageSquareText}>
-        <div className="chat-session-list">
-          {loading ? <p className="empty-state">Loading chats…</p> : sessions.length ? sessions.map((session) => (
-            <button className={`chat-session-card ${session.id === selectedSessionId ? "active" : ""}`} type="button" key={session.id} onClick={() => selectSession(session.id)}>
-              <div><strong>{formatChatSessionTitle(session)}</strong><span>{session.channel} · {formatAppointmentTime(session.lastMessageAt || session.createdAt)}</span></div>
-              <div className="chat-session-badges">
-                {session.emergencyFlag && <span className="badge red">Urgent</span>}
-                {session.handoffRequested && <span className="badge amber">Handoff</span>}
-                <span className="badge blue">{session.status}</span>
+    <section className="messenger-page">
+      <aside className="messenger-sidebar-panel">
+        <div className="messenger-sidebar-head">
+          <div><p className="eyebrow">Chats</p><h2>Inbox</h2></div>
+          <button className="ghost-button compact-icon-button" type="button" onClick={() => void loadSessions(selectedSessionId)}>Refresh</button>
+        </div>
+        <div className="messenger-search"><MessageSquareText size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" /></div>
+        <div className="messenger-filter-row"><span className="active">All</span><span>Open</span><span>Closed</span></div>
+        <div className="messenger-session-list">
+          {loading ? <p className="empty-state">Loading chats…</p> : filteredSessions.length ? filteredSessions.map((session) => (
+            <button className={`messenger-session-item ${session.id === selectedSessionId ? "active" : ""}`} type="button" key={session.id} onClick={() => selectSession(session.id)}>
+              <span className="messenger-avatar">{session.channel?.slice(0, 1)?.toUpperCase() || "C"}</span>
+              <div className="messenger-session-copy">
+                <strong>{formatChatSessionTitle(session)}</strong>
+                <span>{session.channel} · {session.status}</span>
               </div>
+              <time>{formatShortChatTime(session.lastMessageAt || session.createdAt)}</time>
             </button>
-          )) : <p className="empty-state">No chat history yet. Open Test Chat and send a message to create the first session.</p>}
+          )) : <p className="empty-state">No chats found.</p>}
         </div>
-      </Panel>
-      <Panel title="Conversation transcript" subtitle={selectedSession ? `Session ${selectedSession.id.slice(0, 8)}` : "Select a chat session"} icon={Bot}>
-        <div className="chat-transcript">
+      </aside>
+
+      <main className="messenger-thread-panel">
+        <header className="messenger-thread-head">
+          {selectedSession ? (
+            <>
+              <div className="messenger-avatar large">{selectedSession.channel?.slice(0, 1)?.toUpperCase() || "C"}</div>
+              <div><strong>{formatChatSessionTitle(selectedSession)}</strong><span>{selectedSession.channel} · Session {selectedSession.id.slice(0, 8)}</span></div>
+            </>
+          ) : <div><strong>No conversation selected</strong><span>Select a chat from the inbox.</span></div>}
+        </header>
+        <div className="messenger-thread-body">
           {messages.length ? messages.map((message) => (
-            <div className={`transcript-message ${message.sender}`} key={message.id}>
-              <span>{message.sender} · {formatAppointmentTime(message.createdAt)}</span>
-              <p>{message.body}</p>
+            <div className={`messenger-bubble-row ${message.sender}`} key={message.id}>
+              {message.sender !== "patient" && <span className="mini-avatar">{message.sender === "assistant" ? "AI" : "S"}</span>}
+              <div className="messenger-bubble">
+                <p>{message.body}</p>
+                <span>{message.sender} · {formatAppointmentTime(message.createdAt)}</span>
+              </div>
             </div>
-          )) : <p className="empty-state">No messages selected.</p>}
+          )) : <div className="messenger-empty-thread"><MessageSquareText size={42} /><h3>No messages selected</h3><p>Choose a patient conversation to view the transcript.</p></div>}
         </div>
-      </Panel>
+        <footer className="messenger-thread-footer">
+          <input disabled placeholder="Reply composer coming soon — current mode is transcript review." />
+          <button className="primary-button" type="button" disabled>Send</button>
+        </footer>
+      </main>
+
+      <aside className="messenger-details-panel">
+        <div className="details-profile-card">
+          <div className="messenger-avatar xlarge">{selectedSession?.channel?.slice(0, 1)?.toUpperCase() || "C"}</div>
+          <h3>{selectedSession ? formatChatSessionTitle(selectedSession) : "Chat details"}</h3>
+          <span>{selectedSession?.status || "No session"}</span>
+        </div>
+        <div className="details-stat-grid">
+          <div><strong>{messages.length}</strong><span>Total messages</span></div>
+          <div><strong>{patientMessages}</strong><span>Patient</span></div>
+          <div><strong>{assistantMessages}</strong><span>Assistant</span></div>
+          <div><strong>{selectedSession ? formatShortChatTime(selectedSession.lastMessageAt || selectedSession.createdAt) : "—"}</strong><span>Last active</span></div>
+        </div>
+        <div className="details-info-list">
+          <div><span>Channel</span><strong>{selectedSession?.channel || "—"}</strong></div>
+          <div><span>Session ID</span><strong>{selectedSession?.id.slice(0, 13) || "—"}</strong></div>
+          <div><span>Started</span><strong>{selectedSession ? formatAppointmentTime(selectedSession.createdAt) : "—"}</strong></div>
+          <div><span>Last message</span><strong>{lastMessage ? formatAppointmentTime(lastMessage.createdAt) : "—"}</strong></div>
+        </div>
+      </aside>
     </section>
   );
+}
+
+function formatShortChatTime(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  return sameDay ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function formatChatSessionTitle(session: ChatSessionRow) {
@@ -892,6 +991,14 @@ function KnowledgeBasePage() {
   const [status, setStatus] = useState("Loading clinic knowledge…");
   const [form, setForm] = useState({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const approvedCount = documents.filter((source) => source.status === "approved" || source.status === "indexed").length;
+  const filteredDocuments = documents.filter((source) => {
+    const matchesSearch = [source.title, source.sourceType, source.status, source.content].join(" ").toLowerCase().includes(query.trim().toLowerCase());
+    const matchesFilter = sourceFilter === "all" || source.sourceType === sourceFilter || source.status === sourceFilter;
+    return matchesSearch && matchesFilter;
+  });
 
   async function loadDocuments() {
     const clinicId = getWorkspaceSelection().clinicId;
@@ -966,23 +1073,60 @@ function KnowledgeBasePage() {
   }
 
   return (
-    <>
-      <PageHeader eyebrow="Knowledge Base" title="Clinic-approved RAG sources" action="Add source" />
-      <section className="content-grid two-one">
-        <Panel title="Indexed sources" subtitle={status} icon={DatabaseZap}>
-          <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}>Add approved source</button></div>
-          <div className="source-list live-list">
-            {loading ? <p className="empty-state">Loading knowledge…</p> : documents.length ? documents.map((source) => (
-              <div className="source-row rich-row" key={source.id}>
-                <div><strong>{source.title}</strong><span>{source.sourceType} · {source.content.slice(0, 120)}{source.content.length > 120 ? "…" : ""}</span></div>
-                <div className="row-actions"><span className={`badge ${source.status === "approved" || source.status === "indexed" ? "green" : "amber"}`}>{source.status}</span><button type="button" onClick={() => updateDocumentStatus(source.id, source.status === "approved" ? "draft" : "approved")}>{source.status === "approved" ? "Draft" : "Approve"}</button></div>
-              </div>
-            )) : <p className="empty-state">No knowledge yet. Add the clinic’s approved FAQs, policies, services, and prices.</p>}
+    <section className="knowledge-modern-page">
+      <div className="knowledge-hero-card">
+        <div className="knowledge-hero-icon"><DatabaseZap size={34} /></div>
+        <div>
+          <span className="badge teal"><Sparkles size={14} /> Approved clinic knowledge</span>
+          <h1>Knowledge base</h1>
+          <p>Manage the verified FAQs, policies, services, prices, and notes your AI receptionist can use in patient chats.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={17} /> Add source</button>
+      </div>
+
+      <section className="knowledge-command-grid">
+        <div className="knowledge-summary-card primary">
+          <p className="eyebrow">Answer safety</p>
+          <h2>Approved sources only</h2>
+          <span>Receptionist answers clinic-specific questions from this directory and avoids diagnosis or prescriptions.</span>
+        </div>
+        <div className="knowledge-metric-grid">
+          <div><strong>{documents.length}</strong><span>Total sources</span></div>
+          <div><strong>{approvedCount}</strong><span>Approved/indexed</span></div>
+          <div><strong>{filteredDocuments.length}</strong><span>Visible records</span></div>
+          <div><strong>{new Set(documents.map((source) => source.sourceType)).size}</strong><span>Source types</span></div>
+        </div>
+      </section>
+
+      <section className="knowledge-directory-shell">
+        <div className="knowledge-directory-table">
+          <div className="knowledge-directory-intro">
+            <div>
+              <p className="eyebrow">Knowledge directory</p>
+              <h2>Manage sources</h2>
+              <span>{status}</span>
+            </div>
           </div>
-        </Panel>
-        <Panel title="RAG configuration" subtitle="Control how answers are generated" icon={FileText}>
-          <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active clinic knowledge"], ["Knowledge gaps", "Escalate to human handoff"]]} />
-        </Panel>
+          <div className="knowledge-directory-controls">
+            <label className="knowledge-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, type, status, content…" /></label>
+            <label className="knowledge-directory-filter">Filter<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">All sources</option><option value="approved">Approved</option><option value="indexed">Indexed</option><option value="draft">Draft</option><option value="faq">FAQ</option><option value="service">Service</option><option value="policy">Policy</option><option value="document">Document</option><option value="website">Website</option><option value="note">Note</option></select></label>
+            <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={16} /> New source</button>
+          </div>
+          <div className="knowledge-table-head"><span>Source</span><span>Type</span><span>Status</span><span>Actions</span></div>
+          {loading ? <p className="empty-state knowledge-table-empty">Loading knowledge…</p> : !filteredDocuments.length ? <p className="empty-state knowledge-table-empty">No knowledge source matched your filters.</p> : filteredDocuments.map((source) => (
+            <div className="knowledge-table-row" key={source.id}>
+              <div className="knowledge-table-source"><span className="knowledge-source-avatar"><FileText size={18} /></span><div><strong>{source.title}</strong><span>{source.content.slice(0, 130)}{source.content.length > 130 ? "…" : ""}</span></div></div>
+              <div><span className="knowledge-type-pill">{source.sourceType}</span></div>
+              <div><span className={`badge ${source.status === "approved" || source.status === "indexed" ? "green" : "amber"}`}>{source.status}</span></div>
+              <div className="knowledge-table-actions"><button type="button" onClick={() => updateDocumentStatus(source.id, source.status === "approved" ? "draft" : "approved")}>{source.status === "approved" ? "Move to draft" : "Approve"}</button></div>
+            </div>
+          ))}
+        </div>
+        <aside className="knowledge-config-card">
+          <div className="knowledge-config-icon"><ShieldCheck size={24} /></div>
+          <h3>RAG configuration</h3>
+          <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active clinic knowledge"], ["Knowledge gaps", "Tell patient to contact clinic"]]} />
+        </aside>
       </section>
       {createModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add knowledge source">
@@ -1008,7 +1152,7 @@ function KnowledgeBasePage() {
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
@@ -1195,6 +1339,15 @@ function AppointmentsPage() {
   const [status, setStatus] = useState("Loading appointments…");
   const [form, setForm] = useState({ patientName: "", contact: "", service: "", requestedAt: "", note: "" });
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [appointmentFilter, setAppointmentFilter] = useState("all");
+  const requestedCount = appointments.filter((appointment) => appointment.status === "requested").length;
+  const confirmedCount = appointments.filter((appointment) => appointment.status === "confirmed").length;
+  const filteredAppointments = appointments.filter((appointment) => {
+    const matchesSearch = [appointment.patientName, appointment.patientContact, appointment.service, appointment.time, appointment.status, appointment.note].join(" ").toLowerCase().includes(query.trim().toLowerCase());
+    const matchesFilter = appointmentFilter === "all" || appointment.status === appointmentFilter;
+    return matchesSearch && matchesFilter;
+  });
 
   async function loadAppointments() {
     const clinicId = getWorkspaceSelection().clinicId;
@@ -1284,16 +1437,52 @@ function AppointmentsPage() {
   }
 
   return (
-    <>
-      <PageHeader eyebrow="Appointments" title="Booking requests and schedule control" action="New slot" />
-      <section className="content-grid two-one">
-        <Panel title="Appointment inbox" subtitle={status} icon={CalendarCheck}>
-          <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}>Create request</button></div>
-          <AppointmentTable rows={appointments} loading={loading} onStatusChange={updateAppointmentStatus} />
-        </Panel>
-        <Panel title="Scheduling rules" subtitle="How the AI collects bookings" icon={ClipboardList}>
+    <section className="appointments-modern-page">
+      <div className="appointments-hero-card">
+        <div className="appointments-hero-icon"><CalendarCheck size={34} /></div>
+        <div>
+          <span className="badge teal"><Sparkles size={14} /> Booking request inbox</span>
+          <h1>Appointments</h1>
+          <p>Review patient booking requests, confirm schedules, and keep every receptionist-created appointment organized.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={17} /> Create request</button>
+      </div>
+
+      <section className="appointments-command-grid">
+        <div className="appointments-summary-card primary">
+          <p className="eyebrow">Scheduling workflow</p>
+          <h2>Staff approval required</h2>
+          <span>StormeAI collects requests through the booking flow. Staff review, confirm, reschedule, or complete them here.</span>
+        </div>
+        <div className="appointments-metric-grid">
+          <div><strong>{appointments.length}</strong><span>Total requests</span></div>
+          <div><strong>{requestedCount}</strong><span>Needs review</span></div>
+          <div><strong>{confirmedCount}</strong><span>Confirmed</span></div>
+          <div><strong>{filteredAppointments.length}</strong><span>Visible records</span></div>
+        </div>
+      </section>
+
+      <section className="appointments-directory-shell">
+        <div className="appointments-directory-table">
+          <div className="appointments-directory-intro">
+            <div>
+              <p className="eyebrow">Appointment directory</p>
+              <h2>Manage bookings</h2>
+              <span>{status}</span>
+            </div>
+          </div>
+          <div className="appointments-directory-controls">
+            <label className="appointments-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search patient, service, contact, note…" /></label>
+            <label className="appointments-directory-filter">Filter<select value={appointmentFilter} onChange={(event) => setAppointmentFilter(event.target.value)}><option value="all">All appointments</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></label>
+            <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={16} /> New request</button>
+          </div>
+          <AppointmentTable rows={filteredAppointments} loading={loading} onStatusChange={updateAppointmentStatus} />
+        </div>
+        <aside className="appointments-config-card">
+          <div className="appointments-config-icon"><ClipboardList size={24} /></div>
+          <h3>Scheduling rules</h3>
           <ConfigList items={[["Default status", "Requested"], ["Staff approval", "Required"], ["Required fields", "Name, contact, service, time"], ["Confirmation", "Manual staff confirmation"]]} />
-        </Panel>
+        </aside>
       </section>
       {createModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create appointment request">
@@ -1313,7 +1502,7 @@ function AppointmentsPage() {
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
@@ -1338,6 +1527,7 @@ function MarketingPage() {
   const [status, setStatus] = useState("Loading appointment contacts…");
   const [composerOpen, setComposerOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
+  const [patientFilter, setPatientFilter] = useState("all");
   const [campaign, setCampaign] = useState({
     channel: "email",
     audience: "all",
@@ -1408,22 +1598,17 @@ function MarketingPage() {
     return subscribeWorkspaceSelection(() => void loadContacts());
   }, []);
 
-  const searchedContacts = contacts.filter((contact) => [contact.name, contact.email, contact.phone, contact.lastService].join(" ").toLowerCase().includes(patientSearch.toLowerCase()));
+  const searchedContacts = contacts.filter((contact) => {
+    const matchesSearch = [contact.name, contact.email, contact.lastService].join(" ").toLowerCase().includes(patientSearch.trim().toLowerCase());
+    const matchesFilter = patientFilter === "all" || (patientFilter === "email" ? Boolean(contact.email) : selectedIds.includes(contact.id));
+    return matchesSearch && matchesFilter;
+  });
   const emailContacts = contacts.filter((contact) => contact.email);
-  const smsContacts = contacts.filter((contact) => contact.phone);
   const selectedContacts = contacts.filter((contact) => selectedIds.includes(contact.id));
   const selectedEmailContacts = selectedContacts.filter((contact) => contact.email);
-  const selectedSmsContacts = selectedContacts.filter((contact) => contact.phone);
-  const activeContacts = campaign.channel === "email" ? selectedEmailContacts : selectedSmsContacts;
-  const smsText = selectedSmsContacts.map((contact) => contact.phone).join(", ");
 
   function toggleContact(id: string) {
     setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  }
-
-  async function copySmsList() {
-    await navigator.clipboard.writeText(smsText);
-    setStatus(`Copied ${selectedSmsContacts.length} SMS number${selectedSmsContacts.length === 1 ? "" : "s"}. SMS sending provider can be connected next.`);
   }
 
   async function loadAttachments(files: FileList | null) {
@@ -1478,71 +1663,123 @@ function MarketingPage() {
   }
 
   return (
-    <>
-      <PageHeader eyebrow="Marketing" title="Campaigns for previous patients" action="Resend email + SMS prep" />
-      <section className="content-grid two-one marketing-dashboard">
-        <Panel title="Campaign center" subtitle="Send promos, discounts, and notices from appointment contacts" icon={Megaphone}>
-          <div className="marketing-hero">
+    <section className="marketing-modern-page">
+      <div className="marketing-hero-card-modern">
+        <div className="marketing-hero-icon"><Megaphone size={34} /></div>
+        <div>
+          <span className="badge teal"><Sparkles size={14} /> Previous patient campaigns</span>
+          <h1>Marketing</h1>
+          <p>Build email campaigns with Resend and target previous patients from appointment history.</p>
+        </div>
+        <button className="primary-button" type="button" disabled={!contacts.length} onClick={() => setComposerOpen(true)}><Plus size={17} /> Create campaign</button>
+      </div>
+
+      <section className="marketing-command-grid-modern">
+        <div className="marketing-summary-card-modern primary">
+          <p className="eyebrow">Campaign workflow</p>
+          <h2>Email via Resend</h2>
+          <span>Send promos, clinic notices, and reminders to previous patients using verified email contacts and Resend delivery.</span>
+        </div>
+        <div className="marketing-metric-grid-modern">
+          <div><strong>{contacts.length}</strong><span>Total contacts</span></div>
+          <div><strong>{selectedIds.length}</strong><span>Selected patients</span></div>
+          <div><strong>{emailContacts.length}</strong><span>Email-ready</span></div>
+          <div><strong>{searchedContacts.length}</strong><span>Visible contacts</span></div>
+        </div>
+      </section>
+
+      <section className="marketing-directory-shell-modern">
+        <div className="marketing-directory-table-modern">
+          <div className="marketing-directory-intro-modern">
             <div>
-              <p className="eyebrow">Audience ready</p>
-              <h3>{selectedIds.length} selected patient{selectedIds.length === 1 ? "" : "s"}</h3>
-              <p>Email uses Resend. SMS numbers are prepared here; SMS provider connection can be added next.</p>
+              <p className="eyebrow">Patient marketing directory</p>
+              <h2>Manage audience</h2>
+              <span>{status}</span>
             </div>
+          </div>
+          <div className="marketing-directory-controls-modern">
+            <label className="marketing-directory-search-modern"><Search size={17} /><input value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search patient, email, service…" /></label>
+            <label className="marketing-directory-filter-modern">Filter<select value={patientFilter} onChange={(event) => setPatientFilter(event.target.value)}><option value="all">All contacts</option><option value="selected">Selected</option><option value="email">Has email</option></select></label>
+            <button className="primary-button" type="button" disabled={!contacts.length} onClick={() => setComposerOpen(true)}><Plus size={16} /> New campaign</button>
+          </div>
+          <div className="marketing-selection-bar-modern">
+            <span>{selectedIds.length} selected · {selectedEmailContacts.length} email-ready</span>
+            <div><button type="button" onClick={() => setSelectedIds(contacts.map((contact) => contact.id))}>Select all</button><button type="button" onClick={() => setSelectedIds([])}>Clear</button></div>
+          </div>
+          <div className="marketing-table-head-modern"><span>Patient</span><span>Reach</span><span>History</span><span>Select</span></div>
+          {loading ? <p className="empty-state marketing-table-empty-modern">Loading patients…</p> : searchedContacts.length ? searchedContacts.map((contact) => (
+            <label className="marketing-table-row-modern" key={contact.id}>
+              <div className="marketing-table-patient-modern"><span className="marketing-patient-avatar-modern">{contact.name.slice(0, 1).toUpperCase()}</span><div><strong>{contact.name}</strong><span>{contact.lastService}</span></div></div>
+              <div className="marketing-table-reach-modern"><span>{contact.email || "No email"}</span></div>
+              <div className="marketing-table-history-modern"><strong>{contact.appointmentCount}</strong><span>{formatAppointmentTime(contact.lastVisit)}</span></div>
+              <div className="marketing-table-check-modern"><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={() => toggleContact(contact.id)} /></div>
+            </label>
+          )) : <p className="empty-state marketing-table-empty-modern">No previous patient details matched your filters.</p>}
+        </div>
+        <aside className="marketing-config-card-modern">
+          <div className="marketing-config-icon-modern"><Users size={24} /></div>
+          <h3>Campaign center</h3>
+          <ConfigList items={[["Email recipients", String(selectedEmailContacts.length)], ["Email provider", "Resend"], ["Attachments", `${attachments.length}/5 files`], ["Audience source", "Appointment history"]]} />
+          <div className="marketing-side-actions-modern">
             <button className="primary-button" type="button" disabled={!contacts.length} onClick={() => setComposerOpen(true)}>Create campaign</button>
           </div>
-          <ConfigList items={[["Email recipients", String(selectedEmailContacts.length)], ["SMS recipients", String(selectedSmsContacts.length)], ["Email provider", "Resend"], ["Attachments", `${attachments.length}/5 files`]]} />
-        </Panel>
-        <Panel title="Previous patient details" subtitle={status} icon={Users}>
-          <input className="search-input" value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search patients, email, phone, service…" />
-          <div className="panel-action-row compact-actions">
-            <button className="ghost-button" type="button" onClick={() => setSelectedIds(contacts.map((contact) => contact.id))}>Select all</button>
-            <button className="ghost-button" type="button" onClick={() => setSelectedIds([])}>Clear</button>
-          </div>
-          <div className="source-list live-list patient-detail-list">
-            {loading ? <p className="empty-state">Loading patients…</p> : searchedContacts.length ? searchedContacts.map((contact) => (
-              <label className="patient-detail-card" key={contact.id}>
-                <input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={() => toggleContact(contact.id)} />
-                <div>
-                  <strong>{contact.name}</strong>
-                  <span>{contact.email || "No email"} · {contact.phone || "No phone"}</span>
-                  <small>{contact.lastService} · {formatAppointmentTime(contact.lastVisit)} · {contact.appointmentCount} appointment{contact.appointmentCount === 1 ? "" : "s"}</small>
-                </div>
-              </label>
-            )) : <p className="empty-state">No previous patient details found.</p>}
-          </div>
-        </Panel>
+        </aside>
       </section>
 
       {composerOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create marketing campaign">
-          <div className="prompt-modal create-modal marketing-modal">
-            <div className="prompt-modal-header">
-              <div><p className="eyebrow">Marketing campaign</p><h2>Create promo, discount, or notice</h2></div>
+          <div className="prompt-modal create-modal marketing-modal campaign-composer-modal">
+            <div className="campaign-composer-hero">
+              <div className="campaign-composer-icon"><Megaphone size={28} /></div>
+              <div>
+                <p className="eyebrow">Marketing campaign</p>
+                <h2>Create promo, discount, or notice</h2>
+                <span>Email-only delivery through Resend · {selectedEmailContacts.length} selected recipient{selectedEmailContacts.length === 1 ? "" : "s"}</span>
+              </div>
               <button className="ghost-button" type="button" onClick={() => setComposerOpen(false)}>Close</button>
             </div>
-            <form className="marketing-form modal-form" onSubmit={(event) => event.preventDefault()}>
-              <div className="campaign-grid">
-                <label>Channel<select value={campaign.channel} onChange={(event) => setCampaign({ ...campaign, channel: event.target.value })}><option value="email">Email via Resend</option><option value="sms">SMS list</option></select></label>
-                <label>Audience<select value={campaign.audience} onChange={(event) => setCampaign({ ...campaign, audience: event.target.value })}><option value="all">All selected patients</option><option value="email-only">Patients with email</option><option value="sms-only">Patients with phone</option></select></label>
-                <label>From name<input value={campaign.fromName} onChange={(event) => setCampaign({ ...campaign, fromName: event.target.value })} placeholder="Clinic name" /></label>
-                <label>Reply-to email<input value={campaign.replyTo} onChange={(event) => setCampaign({ ...campaign, replyTo: event.target.value })} placeholder="clinic@example.com" /></label>
-              </div>
-              <label>Subject<input value={campaign.subject} onChange={(event) => setCampaign({ ...campaign, subject: event.target.value })} placeholder="Summer cleaning discount" disabled={campaign.channel === "sms"} /></label>
-              <label>Body<textarea value={campaign.message} onChange={(event) => setCampaign({ ...campaign, message: event.target.value })} placeholder="Write your promo, discount, or clinic notice…" /></label>
-              <label className="attachment-drop">Attachments<input type="file" multiple onChange={(event) => void loadAttachments(event.target.files)} /><span>{attachments.length ? attachments.map((file) => file.filename).join(", ") : "Attach promo image/PDF, optional up to 5 files"}</span></label>
-              <label className="checkbox-row"><input type="checkbox" checked={campaign.includeFooter} onChange={(event) => setCampaign({ ...campaign, includeFooter: event.target.checked })} /> Include StormeAI clinic footer</label>
-              <div className="campaign-preview">
-                <strong>Preview</strong>
-                <p>{campaign.message}</p>
-              </div>
-              <div className="panel-action-row">
-                {campaign.channel === "email" ? <button className="primary-button" type="button" disabled={sending || !selectedEmailContacts.length} onClick={() => void sendEmailCampaign()}>{sending ? "Sending…" : `Send with Resend (${selectedEmailContacts.length})`}</button> : <button className="primary-button" type="button" disabled={!selectedSmsContacts.length} onClick={() => void copySmsList()}>Copy SMS numbers ({selectedSmsContacts.length})</button>}
-              </div>
+            <form className="marketing-form modal-form campaign-composer-form" onSubmit={(event) => event.preventDefault()}>
+              <section className="campaign-composer-main">
+                <div className="campaign-compose-card">
+                  <div className="campaign-card-heading"><span>1</span><div><strong>Delivery setup</strong><p>Choose sender details and recipient scope.</p></div></div>
+                  <div className="campaign-grid modern">
+                    <label>Channel<select value={campaign.channel} onChange={(event) => setCampaign({ ...campaign, channel: event.target.value })}><option value="email">Email via Resend</option></select></label>
+                    <label>Audience<select value={campaign.audience} onChange={(event) => setCampaign({ ...campaign, audience: event.target.value })}><option value="all">All selected patients</option><option value="email-only">Patients with email</option></select></label>
+                    <label>From name<input value={campaign.fromName} onChange={(event) => setCampaign({ ...campaign, fromName: event.target.value })} placeholder="Clinic name" /></label>
+                    <label>Reply-to email<input value={campaign.replyTo} onChange={(event) => setCampaign({ ...campaign, replyTo: event.target.value })} placeholder="clinic@example.com" /></label>
+                  </div>
+                </div>
+
+                <div className="campaign-compose-card">
+                  <div className="campaign-card-heading"><span>2</span><div><strong>Message content</strong><p>Write a clear clinic-approved email.</p></div></div>
+                  <label>Subject<input value={campaign.subject} onChange={(event) => setCampaign({ ...campaign, subject: event.target.value })} placeholder="Summer cleaning discount" /></label>
+                  <label>Body<textarea value={campaign.message} onChange={(event) => setCampaign({ ...campaign, message: event.target.value })} placeholder="Write your promo, discount, or clinic notice…" /></label>
+                  <label className="attachment-drop modern-drop"><input type="file" multiple onChange={(event) => void loadAttachments(event.target.files)} /><span>{attachments.length ? attachments.map((file) => file.filename).join(", ") : "Drop or choose promo image/PDF · optional up to 5 files"}</span></label>
+                  <label className="checkbox-row modern-checkbox"><input type="checkbox" checked={campaign.includeFooter} onChange={(event) => setCampaign({ ...campaign, includeFooter: event.target.checked })} /> Include StormeAI clinic footer</label>
+                </div>
+              </section>
+
+              <aside className="campaign-preview-panel">
+                <div className="campaign-preview-top">
+                  <span className="badge teal">Live preview</span>
+                  <strong>{selectedEmailContacts.length} recipients</strong>
+                </div>
+                <div className="campaign-email-preview">
+                  <div><span>From</span><strong>{campaign.fromName || "Clinic"}</strong></div>
+                  <div><span>Subject</span><strong>{campaign.subject || "Untitled campaign"}</strong></div>
+                  <p>{campaign.message}</p>
+                  {campaign.includeFooter && <small>— Sent by the clinic via StormeAI</small>}
+                </div>
+                <div className="campaign-send-card">
+                  <ConfigList items={[["Provider", "Resend"], ["Recipients", String(selectedEmailContacts.length)], ["Attachments", `${attachments.length}/5`]]} />
+                  <button className="primary-button" type="button" disabled={sending || !selectedEmailContacts.length} onClick={() => void sendEmailCampaign()}>{sending ? "Sending…" : `Send with Resend (${selectedEmailContacts.length})`}</button>
+                </div>
+              </aside>
             </form>
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
@@ -1557,24 +1794,127 @@ function fileToBase64(file: File) {
 
 
 function IntegrationsPage() {
-  const clinicId = getWorkspaceSelection().clinicId || "CLINIC_UUID";
-  const receptionistId = getWorkspaceSelection().receptionistId || "OPTIONAL_RECEPTIONIST_UUID";
+  const [selectedClinicId, setSelectedClinicId] = useState(getWorkspaceSelection().clinicId || "");
+  const [selectedWidgetReceptionistId, setSelectedWidgetReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+  const [widgetReceptionists, setWidgetReceptionists] = useState<ReceptionistOption[]>([]);
+  const [integrationStatus, setIntegrationStatus] = useState("Loading AI receptionists…");
+  const clinicId = selectedClinicId || "CLINIC_UUID";
+  const receptionistId = selectedWidgetReceptionistId || "OPTIONAL_RECEPTIONIST_UUID";
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://YOUR_SUPABASE_PROJECT.supabase.co";
   const widgetUrl = `${window.location.origin}/stormeai-widget.js`;
   const localChatUrl = `${window.location.origin}/stormeai-local-chat`;
-  const localWidgetAttrs = import.meta.env.DEV ? `\n  data-chat-mode="local-ollama"\n  data-local-chat-url="${localChatUrl}"` : "";
-  const snippet = `<script\n  async\n  src="${widgetUrl}"\n  data-api-url="${supabaseUrl}"${localWidgetAttrs}\n  data-clinic-id="${clinicId}"\n  data-receptionist-id="${receptionistId}"\n  data-title="Clinic chat"\n  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">\n</script>`;
+  const localWidgetAttrs = import.meta.env.DEV ? `
+  data-chat-mode="local-ollama"
+  data-local-chat-url="${localChatUrl}"` : "";
+  const snippet = `<script
+  async
+  src="${widgetUrl}"
+  data-api-url="${supabaseUrl}"${localWidgetAttrs}
+  data-clinic-id="${clinicId}"
+  data-receptionist-id="${receptionistId}"
+  data-title="Clinic chat"
+  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">
+</script>`;
+  const activeWidgetReceptionist = widgetReceptionists.find((item) => item.receptionistId === selectedWidgetReceptionistId);
+
+  async function loadWidgetReceptionists() {
+    const selection = getWorkspaceSelection();
+    const nextClinicId = selection.clinicId || "";
+    setSelectedClinicId(nextClinicId);
+    if (!nextClinicId) {
+      setWidgetReceptionists([]);
+      setSelectedWidgetReceptionistId("");
+      setIntegrationStatus("Choose a clinic first, then select an AI receptionist for the widget.");
+      return;
+    }
+    try {
+      const items = await listReceptionists(nextClinicId);
+      setWidgetReceptionists(items);
+      const preferredId = selection.receptionistId && items.some((item) => item.receptionistId === selection.receptionistId) ? selection.receptionistId : items[0]?.receptionistId || "";
+      setSelectedWidgetReceptionistId(preferredId);
+      if (preferredId) persistWorkspaceSelection({ clinicId: nextClinicId, receptionistId: preferredId });
+      setIntegrationStatus(items.length ? `${items.length} AI receptionist${items.length === 1 ? "" : "s"} available for this widget.` : "No AI receptionists found for this clinic yet.");
+    } catch (error) {
+      setIntegrationStatus(error instanceof Error ? error.message : "Failed to load AI receptionists.");
+    }
+  }
+
+  useEffect(() => {
+    void loadWidgetReceptionists();
+    return subscribeWorkspaceSelection(() => void loadWidgetReceptionists());
+  }, []);
+
+  function chooseWidgetReceptionist(receptionistId: string) {
+    setSelectedWidgetReceptionistId(receptionistId);
+    if (selectedClinicId) persistWorkspaceSelection({ clinicId: selectedClinicId, receptionistId });
+  }
 
   return (
-    <section className="content-grid two-one integrations-page">
-      <Panel title="Website chat widget" subtitle="Paste this before </body> on any website" icon={Globe2}>
-        <div className="embed-code-box"><pre>{snippet}</pre></div>
-        <div className="panel-action-row"><button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button></div>
-      </Panel>
-      <Panel title="Telegram bot" subtitle="Connect BotFather bot to StormeAI" icon={MessageSquareText}>
-        <ConfigList items={[["Function", `${supabaseUrl}/functions/v1/telegram-webhook`], ["Secret", "TELEGRAM_BOT_TOKEN"], ["Clinic", clinicId], ["Channel", "telegram"]]} />
-        <p className="empty-state">Set the Telegram token and clinic ID as Supabase secrets, then register the webhook with Telegram.</p>
-      </Panel>
+    <section className="integrations-modern-page">
+      <div className="integrations-hero-card">
+        <div className="integrations-hero-icon"><Globe2 size={34} /></div>
+        <div>
+          <span className="badge teal"><Sparkles size={14} /> Patient channel setup</span>
+          <h1>Integrations</h1>
+          <p>Connect StormeAI to clinic websites and choose which AI Receptionist powers each embedded widget.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy widget script</button>
+      </div>
+
+      <section className="integrations-command-grid">
+        <div className="integrations-summary-card primary">
+          <p className="eyebrow">Primary channel</p>
+          <h2>Website chat widget</h2>
+          <span>Pick any AI Receptionist for this clinic, then copy the widget script. The selected receptionist ID is included in the embed.</span>
+        </div>
+        <div className="integrations-metric-grid">
+          <div><strong>1</strong><span>Channel listed</span></div>
+          <div><strong>{widgetReceptionists.length}</strong><span>Receptionists</span></div>
+          <div><strong>{import.meta.env.DEV ? "Local" : "Cloud"}</strong><span>Widget mode</span></div>
+          <div><strong>Chat</strong><span>Receptionist scope</span></div>
+        </div>
+      </section>
+
+      <section className="integrations-directory-shell">
+        <div className="integrations-directory-table">
+          <div className="integrations-directory-intro">
+            <div>
+              <p className="eyebrow">Integration directory</p>
+              <h2>Manage channels</h2>
+              <span>{integrationStatus}</span>
+            </div>
+          </div>
+          <div className="widget-receptionist-picker">
+            <div>
+              <p className="eyebrow">Widget AI Receptionist</p>
+              <h3>{activeWidgetReceptionist?.name || "Select receptionist"}</h3>
+              <span>This receptionist will answer chats from the copied website widget.</span>
+            </div>
+            <label>Choose receptionist<select value={selectedWidgetReceptionistId} onChange={(event) => chooseWidgetReceptionist(event.target.value)} disabled={!widgetReceptionists.length}>{widgetReceptionists.length ? widgetReceptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>) : <option value="">No receptionists available</option>}</select></label>
+          </div>
+          <div className="integrations-table-head"><span>Channel</span><span>Status</span><span>Setup</span><span>Action</span></div>
+          <div className="integrations-table-row active">
+            <div className="integrations-table-channel"><span className="integrations-channel-avatar"><Globe2 size={20} /></span><div><strong>Website chat widget</strong><span>Embed on the clinic website before the closing body tag.</span></div></div>
+            <div><span className="integration-status-pill ready">Ready</span></div>
+            <div className="integrations-table-setup"><span>Clinic: {clinicId}</span><span>Receptionist: {activeWidgetReceptionist?.name || receptionistId}</span></div>
+            <div className="integrations-table-actions"><button type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button></div>
+          </div>
+        </div>
+
+        <aside className="integrations-config-card">
+          <div className="integrations-config-icon"><Globe2 size={24} /></div>
+          <h3>Website widget</h3>
+          <ConfigList items={[["Clinic", clinicId], ["Receptionist", activeWidgetReceptionist?.name || receptionistId], ["Receptionist ID", receptionistId], ["API URL", supabaseUrl], ["Local gateway", import.meta.env.DEV ? "Enabled" : "Production"]]} />
+        </aside>
+      </section>
+
+      <section className="integration-script-card">
+        <div className="integration-script-heading">
+          <div><p className="eyebrow">Embed script</p><h2>Paste before closing body tag</h2><span>Script is generated for {activeWidgetReceptionist?.name || "the selected AI receptionist"}.</span></div>
+          <button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button>
+        </div>
+        <div className="embed-code-box modern"><pre>{snippet}</pre></div>
+      </section>
     </section>
   );
 }
@@ -1621,10 +1961,22 @@ function formatAppointmentTime(value?: string | null) {
 }
 
 function AppointmentTable({ rows, loading, onStatusChange }: { rows: AppointmentInboxRow[]; loading: boolean; onStatusChange: (id: string, status: string) => void }) {
-  if (loading) return <p className="empty-state">Loading appointments…</p>;
-  if (!rows.length) return <p className="empty-state">No appointment requests yet. Create one manually or let the Test Chat collect booking details.</p>;
+  if (loading) return <p className="empty-state appointments-table-empty">Loading appointments…</p>;
+  if (!rows.length) return <p className="empty-state appointments-table-empty">No appointment requests matched your filters.</p>;
 
-  return <div className="appointment-table live-list">{rows.map((row) => <div className="appointment-row rich-row" key={row.id}><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div><span>{row.time}</span><select value={row.status} onChange={(event) => onStatusChange(row.id, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></div>)}</div>;
+  return (
+    <div className="appointments-table">
+      <div className="appointments-table-head"><span>Patient</span><span>Schedule</span><span>Status</span><span>Update</span></div>
+      {rows.map((row) => (
+        <div className="appointments-table-row" key={row.id}>
+          <div className="appointments-table-patient"><span className="appointments-patient-avatar">{row.patientName.slice(0, 1).toUpperCase()}</span><div><strong>{row.patientName}</strong><span>{row.service} · {row.patientContact}</span>{row.note && <em>{row.note}</em>}</div></div>
+          <div className="appointments-table-time">{row.time}</div>
+          <div><span className={`appointment-status-pill ${row.status}`}>{row.status.replace("_", " ")}</span></div>
+          <div className="appointments-table-actions"><select value={row.status} onChange={(event) => onStatusChange(row.id, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="rescheduled">Rescheduled</option><option value="canceled">Canceled</option><option value="completed">Completed</option><option value="no_show">No-show</option></select></div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function Bar({ label, value, width }: { label: string; value: string; width: string }) {

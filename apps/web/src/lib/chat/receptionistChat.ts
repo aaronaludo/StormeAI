@@ -7,6 +7,7 @@ import type { RagContext } from "../ai/receptionistPrompt";
 export type ReceptionistChatTurnInput = {
   sessionId?: string;
   patientMessage: string;
+  receptionistName?: string;
 };
 
 export type ReceptionistChatTurnResult = {
@@ -22,9 +23,15 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
   if (!selection.clinicId) throw new Error("Choose a clinic before testing chat.");
 
   const settings = await loadReceptionistSettings(selection.clinicId, selection.receptionistId);
-  const useLocalOllama = import.meta.env.DEV && settings.defaultProvider === "ollama";
+  const activeName = input.receptionistName || settings.name;
+  const chatSettings = {
+    ...settings,
+    name: activeName,
+    greetingMessage: settings.greetingMessage.replace(/\bMia\b/g, activeName),
+  };
+  const useLocalOllama = import.meta.env.DEV && chatSettings.defaultProvider === "ollama";
 
-  if (useLocalOllama) return sendLocalOllamaTestChatTurn(input, settings, settings.clinicId || selection.clinicId);
+  if (useLocalOllama) return sendLocalOllamaTestChatTurn(input, chatSettings, chatSettings.clinicId || selection.clinicId);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!supabaseUrl) throw new Error("Missing VITE_SUPABASE_URL.");
@@ -46,7 +53,7 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
 
   return {
     sessionId: data.sessionId,
-    reply: data.reply,
+    reply: sanitizeReceptionistName(data.reply, activeName),
     mode: data.mode || "ai",
     citations: data.citations || [],
     bookingUrl: data.bookingUrl || undefined,
@@ -69,6 +76,7 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 
   const prompt = [
     buildSettingsPromptPreview(settings),
+    `Your receptionist name is ${settings.name}. Do not call yourself Mia unless your name is Mia.`,
     renderKnowledge(citations),
     "This is a local dashboard Test Chat turn. Reply as the configured receptionist.",
   ].join("\n\n");
@@ -82,10 +90,15 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 
   return {
     sessionId,
-    reply: completion.content.trim() || "I’m here, but I couldn’t generate a response. Please try again.",
+    reply: sanitizeReceptionistName(completion.content.trim() || "I’m here, but I couldn’t generate a response. Please try again.", settings.name),
     mode: "ai",
     citations,
   };
+}
+
+function sanitizeReceptionistName(reply: string, receptionistName: string) {
+  if (!receptionistName || receptionistName === "Mia") return reply;
+  return reply.replace(/\bMia\b/g, receptionistName);
 }
 
 function wantsBooking(message: string) {

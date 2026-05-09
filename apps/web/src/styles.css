@@ -4082,3 +4082,334 @@ button:disabled,
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive collapsible sidebar */
+.sidebar-menu-toggle,
+.sidebar-close-button,
+.sidebar-scrim {
+  display: none;
+}
+.sidebar-close-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #2563eb;
+  place-items: center;
+  z-index: 3;
+}
+@media (max-width: 760px) {
+  .app-shell {
+    display: block;
+    min-height: 100vh;
+  }
+  .sidebar-menu-toggle {
+    position: sticky;
+    top: 10px;
+    left: 12px;
+    z-index: 80;
+    width: fit-content;
+    min-height: 42px;
+    margin: 10px 0 0 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #2563eb;
+    box-shadow: 0 14px 34px rgba(15,23,42,.12);
+    backdrop-filter: blur(14px);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    font-weight: 900;
+  }
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: 0;
+    padding: 0;
+    background: rgba(15,23,42,.38);
+    backdrop-filter: blur(3px);
+  }
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    z-index: 100;
+    width: min(318px, calc(100vw - 42px));
+    height: 100dvh !important;
+    overflow-y: auto;
+    padding: 22px 16px !important;
+    padding-top: 68px !important;
+    border-right: 1px solid rgba(226,232,240,.95) !important;
+    border-bottom: 0 !important;
+    background: rgba(255,255,255,.97) !important;
+    box-shadow: 26px 0 70px rgba(15,23,42,.2);
+    transform: translateX(-110%);
+    transition: transform .22s ease;
+  }
+  .app-shell.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-close-button {
+    display: grid;
+  }
+  .sidebar .brand-lockup {
+    justify-content: flex-start;
+  }
+  .sidebar .nav-list {
+    grid-template-columns: 1fr !important;
+  }
+  .sidebar .nav-item {
+    justify-content: flex-start;
+  }
+  .sidebar .sidebar-card {
+    margin-top: auto;
+  }
+  .main-panel {
+    padding-top: 12px !important;
+  }
+}
+
+/* Desktop adjustable sidebar width */
+.app-shell {
+  grid-template-columns: var(--sidebar-width, 292px) minmax(0, 1fr);
+}
+.sidebar {
+  width: var(--sidebar-width, 292px);
+}
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 4;
+}
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 4px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.sidebar-resize-handle:hover::after,
+body.sidebar-resizing .sidebar-resize-handle::after {
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+}
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+@media (max-width: 1440px) and (min-width: 1025px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr);
+  }
+  .sidebar {
+    width: var(--sidebar-width, 260px);
+  }
+}
+@media (max-width: 1280px) and (min-width: 1025px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-width, 240px) minmax(0, 1fr);
+  }
+  .sidebar {
+    width: var(--sidebar-width, 240px);
+  }
+}
+@media (max-width: 1024px) {
+  .app-shell,
+  .app-shell.sidebar-open {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    width: auto;
+  }
+  .sidebar-resize-handle {
+    display: none;
+  }
+}
+
+/* AI Receptionist persona avatar robot emoji */
+.persona-avatar {
+  font-size: 25px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+/* Center and enlarge robot emoji inside AI Receptionist avatar */
+.persona-card .persona-avatar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center;
+  font-size: 32px;
+  line-height: 1;
+  padding: 0;
+  overflow: hidden;
+}
+.persona-card .persona-avatar::first-letter {
+  line-height: 1;
+}
+
+/* Fix chat text input and submit button alignment */
+.widget-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+}
+.widget-input-row input {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0 17px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  outline: none;
+}
+.widget-input-row input::placeholder {
+  color: #94a3b8;
+}
+.widget-input-row input:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(37,99,235,.1);
+}
+.widget-input-row button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 12px 26px rgba(37,99,235,.25);
+}
+.widget-input-row button svg {
+  display: block;
+}
+@media (max-width: 380px) {
+  .widget-input-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+    padding: 12px;
+  }
+  .widget-input-row input,
+  .widget-input-row button {
+    height: 44px;
+    min-height: 44px;
+  }
+  .widget-input-row button {
+    width: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Global AI Receptionist robot emoji icons */
+.robot-emoji-icon,
+.robot-hero-emoji,
+.robot-summary-emoji,
+.widget-robot-emoji,
+.message-robot-emoji,
+.robot-chat-avatar span {
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+.robot-emoji-icon {
+  width: 1em;
+  height: 1em;
+}
+.robot-hero-emoji {
+  font-size: 46px;
+}
+.robot-summary-emoji {
+  font-size: 34px;
+}
+.widget-robot-emoji {
+  font-size: 25px;
+}
+.message-robot-emoji {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 16px;
+  margin-top: 1px;
+}
+.robot-chat-avatar span {
+  font-size: 24px;
+}
+.widget-avatar {
+  font-size: 25px;
+}
+
+/* Requested AI receptionist emoji sizing + no icon inside assistant chat bubbles */
+.ai-pulse {
+  width: 92px;
+  height: 92px;
+  border-radius: 30px;
+}
+.ai-pulse .robot-summary-emoji {
+  font-size: 54px;
+}
+.widget-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
+}
+.widget-avatar .widget-robot-emoji {
+  font-size: 38px;
+}
+.widget-message.assistant {
+  gap: 0;
+}
+.widget-message.assistant .widget-message-content {
+  width: 100%;
+}
+.widget-message.thinking {
+  display: block;
+}
+@media (max-width: 480px) {
+  .ai-pulse {
+    width: 82px;
+    height: 82px;
+  }
+  .ai-pulse .robot-summary-emoji {
+    font-size: 48px;
+  }
+  .widget-avatar {
+    width: 52px;
+    height: 52px;
+  }
+  .widget-avatar .widget-robot-emoji {
+    font-size: 34px;
+  }
+}

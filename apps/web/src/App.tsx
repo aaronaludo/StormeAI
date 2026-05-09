@@ -1,7 +1,6 @@
 import {
   Activity,
   ArrowRight,
-  Bot,
   CalendarCheck,
   Check,
   ChevronRight,
@@ -13,12 +12,14 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Megaphone,
+  Menu,
   Settings2,
   ShieldCheck,
   LogOut,
   Plus,
   Search,
   Sparkles,
+  X,
   Stethoscope,
   Users,
 } from "lucide-react";
@@ -42,6 +43,10 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number }>;
 };
 
+function RobotEmojiIcon({ size = 18 }: { size?: number }) {
+  return <span className="robot-emoji-icon" style={{ fontSize: size }} aria-hidden="true">🤖</span>;
+}
+
 type Metric = {
   label: string;
   value: string;
@@ -53,7 +58,7 @@ const navItems: NavItem[] = [
   { label: "Dashboard", path: "dashboard", icon: LayoutDashboard },
   { label: "Chats", path: "chats", icon: MessageSquareText },
   { label: "Clinics", path: "clinics", icon: ClipboardList },
-  { label: "AI Receptionist", path: "ai-receptionist", icon: Bot },
+  { label: "AI Receptionist", path: "ai-receptionist", icon: RobotEmojiIcon },
   { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
   { label: "Appointments", path: "appointments", icon: CalendarCheck },
   { label: "Marketing", path: "marketing", icon: Megaphone },
@@ -171,14 +176,43 @@ function App() {
 
 function AppLayout() {
   const { clinicId } = useParams();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => Number(localStorage.getItem("stormeai-sidebar-width") || 292));
 
   useEffect(() => {
     if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
   }, [clinicId]);
 
+  function startSidebarResize(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    document.body.classList.add("sidebar-resizing");
+
+    function resize(moveEvent: PointerEvent) {
+      const nextWidth = Math.min(380, Math.max(220, startWidth + moveEvent.clientX - startX));
+      setSidebarWidth(nextWidth);
+      localStorage.setItem("stormeai-sidebar-width", String(Math.round(nextWidth)));
+    }
+
+    function stopResize() {
+      document.body.classList.remove("sidebar-resizing");
+      window.removeEventListener("pointermove", resize);
+      window.removeEventListener("pointerup", stopResize);
+    }
+
+    window.addEventListener("pointermove", resize);
+    window.addEventListener("pointerup", stopResize, { once: true });
+  }
+
   return (
-    <div className="app-shell">
-      <Sidebar />
+    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
+      <button className="sidebar-menu-toggle" type="button" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar menu">
+        <Menu size={21} />
+        <span>Menu</span>
+      </button>
+      {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close sidebar menu" onClick={() => setSidebarOpen(false)} />}
+      <Sidebar onNavigate={() => setSidebarOpen(false)} onClose={() => setSidebarOpen(false)} onResizeStart={startSidebarResize} />
       <main className="main-panel">
         <Outlet />
       </main>
@@ -300,7 +334,7 @@ function FloatingPatientChat() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => void; onClose?: () => void; onResizeStart?: (event: React.PointerEvent<HTMLButtonElement>) => void }) {
   const navigate = useNavigate();
   const { clinicId } = useParams();
   const { session } = useAuthState();
@@ -316,6 +350,7 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <button className="sidebar-close-button" type="button" onClick={onClose} aria-label="Close sidebar menu"><X size={18} /></button>
       <div className="brand-lockup">
         <div className="brand-mark"><Sparkles size={22} /></div>
         <div>
@@ -330,7 +365,7 @@ function Sidebar() {
         {navItems.map((item) => {
           const path = activeClinicId ? clinicPagePath(activeClinicId, item.path) : "/dashboard";
           return (
-            <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label}>
+            <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label} onClick={onNavigate}>
               <item.icon size={18} />
               <span>{item.label}</span>
             </NavLink>
@@ -346,10 +381,11 @@ function Sidebar() {
         </div>
       </div>
 
-      <button className="sidebar-logout" type="button" onClick={logout}>
+      <button className="sidebar-logout" type="button" onClick={() => { onNavigate?.(); void logout(); }}>
         <LogOut size={18} />
         <span>Logout</span>
       </button>
+      <button className="sidebar-resize-handle" type="button" aria-label="Resize sidebar" onPointerDown={onResizeStart} />
     </aside>
   );
 }
@@ -617,7 +653,7 @@ function DashboardAreaList({ activeClinicId, stats }: { activeClinicId: string; 
     ["Appointments", `${stats.appointments} requests`, "appointments", CalendarCheck],
     ["Marketing", `${stats.marketingContacts} contacts`, "marketing", Megaphone],
     ["Knowledge Base", `${stats.knowledge} sources`, "knowledge-base", DatabaseZap],
-    ["AI Receptionist", `${stats.receptionistCount} personas`, "ai-receptionist", Bot],
+    ["AI Receptionist", `${stats.receptionistCount} personas`, "ai-receptionist", RobotEmojiIcon],
     ["Integrations", "Widget + channels", "integrations", Globe2],
   ] as const;
   return <div className="dashboard-area-list">{rows.map(([label, value, page, Icon]) => <NavLink key={label} to={clinicPagePath(activeClinicId, page)}><Icon size={18} /><span>{label}</span><strong>{value}</strong><ChevronRight size={16} /></NavLink>)}</div>;
@@ -728,7 +764,7 @@ function ReceptionistPage() {
   return (
     <section className="ai-receptionist-modern-page">
       <div className="ai-receptionist-hero">
-        <div className="ai-orb"><Bot size={38} /></div>
+        <div className="ai-orb"><span className="robot-hero-emoji" aria-hidden="true">🤖</span></div>
         <div>
           <span className="badge teal"><Sparkles size={14} /> StormeAI persona builder</span>
           <h1>AI Receptionist Studio</h1>
@@ -746,7 +782,7 @@ function ReceptionistPage() {
           <div className="persona-list">
             {receptionists.length ? receptionists.map((item) => (
               <button className={`persona-card ${item.receptionistId === selectedReceptionistId ? "active" : ""}`} key={item.receptionistId} type="button" onClick={() => void switchReceptionist(item.receptionistId)}>
-                <span className="persona-avatar">{item.name.slice(0, 1).toUpperCase()}</span>
+                <span className="persona-avatar" aria-hidden="true">🤖</span>
                 <div><strong>{item.name}</strong><span>Default AI Model</span></div>
                 {item.receptionistId === selectedReceptionistId && <Check size={16} />}
               </button>
@@ -772,7 +808,7 @@ function ReceptionistPage() {
 
         <aside className="ai-live-summary-panel">
           <div className="summary-ai-card">
-            <div className="ai-pulse"><Bot size={26} /></div>
+            <div className="ai-pulse"><span className="robot-summary-emoji" aria-hidden="true">🤖</span></div>
             <h3>{settings.name || "Mia"}</h3>
             <span>{settings.clinicName || "Selected clinic"}</span>
           </div>
@@ -1210,7 +1246,7 @@ function BookingRequestPage() {
       <section className="booking-shell">
         <aside className="booking-summary-panel">
           {step === "details" && !submitted && <button className="booking-back-button" type="button" onClick={() => setStep("schedule")}>←</button>}
-          <div className="booking-avatar"><Bot size={34} /></div>
+          <div className="booking-avatar"><span className="robot-hero-emoji" aria-hidden="true">🤖</span></div>
           <p className="booking-host">StormeAI Receptionist</p>
           <h1>Clinic appointment request</h1>
           <div className="booking-meta-list">
@@ -1939,7 +1975,7 @@ function Panel({ title, subtitle, icon: Icon, children }: { title: string; subti
 function ChatPreview() {
   return (
     <div className="chat-preview">
-      <div className="chat-header"><div className="avatar"><Stethoscope size={18} /></div><div><strong>Mia</strong><span>StormeAI receptionist</span></div></div>
+      <div className="chat-header"><div className="avatar robot-chat-avatar"><span aria-hidden="true">🤖</span></div><div><strong>AI Receptionist</strong><span>StormeAI receptionist</span></div></div>
       <div className="bubble patient">Do you offer dental cleaning tomorrow?</div>
       <div className="bubble ai">Yes. Dental cleaning is available. Would you like me to collect your preferred time?</div>
       <div className="quick-replies"><span>Morning</span><span>Afternoon</span><span>Ask staff</span></div>

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Bot, CalendarCheck, Info, Send, UserRound } from "lucide-react";
+import { CalendarCheck, Info, Send, UserRound } from "lucide-react";
 import { sendReceptionistChatTurn } from "../../lib/chat/receptionistChat";
 
 type WidgetState = "live" | "thinking" | "ai" | "safe-fallback" | "rule" | "error";
@@ -51,7 +51,7 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
     setState("thinking");
 
     try {
-      const result = await sendReceptionistChatTurn({ sessionId, patientMessage: cleanBody });
+      const result = await sendReceptionistChatTurn({ sessionId, patientMessage: cleanBody, receptionistName });
       setSessionId(result.sessionId);
       setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "assistant", body: result.reply, bookingUrl: result.bookingUrl }]);
       setState(result.mode);
@@ -74,7 +74,7 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
   return (
     <section id="patient-chat-widget" className="patient-widget-shell" aria-label="StormeAI patient chat widget">
       <header className="patient-widget-header">
-        <div className="widget-avatar"><Bot size={18} /></div>
+        <div className="widget-avatar"><span className="widget-robot-emoji" aria-hidden="true">🤖</span></div>
         <div><strong>{receptionistName}</strong><span>StormeAI receptionist · live test</span></div>
         <span className={`widget-state ${state}`}>{state === "safe-fallback" ? "fallback" : state}</span>
       </header>
@@ -87,7 +87,7 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
       <div className="patient-widget-messages" ref={messageListRef}>
         {messages.map((message) => (
           <div className={`widget-message ${message.sender}`} key={message.id}>
-            {message.sender === "assistant" ? <Bot size={16} /> : <UserRound size={16} />}
+            {message.sender === "patient" && <UserRound size={16} />}
             <div className="widget-message-content">
               <p>{message.body}</p>
               {message.bookingUrl && (
@@ -98,8 +98,7 @@ export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidge
         ))}
         {state === "thinking" && (
           <div className="widget-message assistant thinking">
-            <Bot size={16} />
-            <p>Mia is checking clinic knowledge…</p>
+            <p>{receptionistName} is checking clinic knowledge…</p>
           </div>
         )}
       </div>

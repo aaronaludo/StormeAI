@@ -36,7 +36,7 @@ export function ReceptionistSettingsForm({ value, loading, saving, status, onCha
       <div className="settings-section-card">
         <SectionHeader icon={Bot} title="Identity and behavior" subtitle="Patient-facing name, tone, and language style." />
         <div className="form-grid">
-          <label>Receptionist name<input value={settings.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mia" /></label>
+          <label>Receptionist name<input value={settings.name} onChange={(e) => update({ name: e.target.value })} placeholder="Meng" /></label>
           <label>Tone<input value={settings.tone} onChange={(e) => update({ tone: e.target.value })} placeholder="Warm, professional, concise" /></label>
           <label className="full-field">Language style<input value={settings.languageStyle} onChange={(e) => update({ languageStyle: e.target.value })} placeholder="English, with Taglish when appropriate" /></label>
           <label className="full-field">Greeting message<textarea value={settings.greetingMessage} onChange={(e) => update({ greetingMessage: e.target.value })} rows={3} /></label>

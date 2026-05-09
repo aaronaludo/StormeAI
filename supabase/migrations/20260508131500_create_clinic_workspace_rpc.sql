@@ -59,7 +59,7 @@ begin
     name
   ) values (
     new_clinic_id,
-    'Mia'
+    'Meng'
   );
 
   insert into public.billing_subscriptions (

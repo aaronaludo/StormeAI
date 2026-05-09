@@ -28,7 +28,7 @@ export type ReceptionistSettingsRecord = {
 };
 
 export const defaultReceptionistSettings: ReceptionistSettingsRecord = {
-  name: "Mia",
+  name: "Meng",
   tone: "Warm, professional, concise",
   languageStyle: "English, with Taglish when appropriate",
   baseSystemPrompt: "",
@@ -40,7 +40,7 @@ export const defaultReceptionistSettings: ReceptionistSettingsRecord = {
   humanHandoffEnabled: true,
   businessHours: "",
   escalationContact: "",
-  greetingMessage: "Hi! I’m Mia, the clinic chat receptionist. How can I help you today?",
+  greetingMessage: "Hi! I’m Meng, the clinic chat receptionist. How can I help you today?",
   bookingInstructions: "Collect patient name, contact details, service, preferred date, and preferred time. Do not promise confirmed availability.",
   handoffInstructions: "Offer to notify clinic staff when unsure, when asked for a human, or when policy/medical boundaries are reached.",
 };
@@ -127,7 +127,7 @@ export async function listReceptionists(clinicId: string): Promise<ReceptionistO
   }));
 }
 
-export async function createReceptionist(clinicId: string, name = "Mia") {
+export async function createReceptionist(clinicId: string, name = "Meng") {
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const { data, error } = await supabase.rpc("create_ai_receptionist", {

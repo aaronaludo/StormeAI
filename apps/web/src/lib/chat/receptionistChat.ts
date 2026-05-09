@@ -76,7 +76,7 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 
   const prompt = [
     buildSettingsPromptPreview(settings),
-    `Your receptionist name is ${settings.name}. Do not call yourself Mia unless your name is Mia.`,
+    `Your receptionist name is ${settings.name}. Do not call yourself Meng unless your name is Meng.`,
     renderKnowledge(citations),
     "This is a local dashboard Test Chat turn. Reply as the configured receptionist.",
   ].join("\n\n");
@@ -97,7 +97,7 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 }
 
 function sanitizeReceptionistName(reply: string, receptionistName: string) {
-  if (!receptionistName || receptionistName === "Mia") return reply;
+  if (!receptionistName || receptionistName === "Meng") return reply;
   return reply.replace(/\bMia\b/g, receptionistName);
 }
 

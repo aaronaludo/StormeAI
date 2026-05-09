@@ -19,7 +19,7 @@ export type RagContext = {
 }[];
 
 export function buildReceptionistSystemPrompt(config: ReceptionistPromptConfig, context: RagContext = []) {
-  const name = config.receptionistName || "Mia";
+  const name = config.receptionistName || "Meng";
   const tone = config.tone || "warm, professional, concise, calm, and helpful";
   const language = config.languageStyle || "Use English. If the patient uses Tagalog or Taglish, respond naturally in Taglish.";
 

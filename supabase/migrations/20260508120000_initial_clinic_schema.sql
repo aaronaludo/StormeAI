@@ -109,7 +109,7 @@ create table public.appointments (
 create table public.ai_receptionists (
   id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null unique references public.clinics(id) on delete cascade,
-  name text not null default 'Mia',
+  name text not null default 'Meng',
   tone text not null default 'warm, professional, concise',
   language_style text not null default 'English, with Taglish when appropriate',
   base_system_prompt text,

@@ -207,7 +207,6 @@ export function ClinicOnboardingPage() {
           <div className="clinic-directory-controls">
             <label className="clinic-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clinic, slug, role…" /></label>
             <label className="clinic-directory-filter">Filter<select value={directoryFilter} onChange={(event) => setDirectoryFilter(event.target.value as "all" | "active" | "inactive")}><option value="all">All clinics</option><option value="active">Active clinic</option><option value="inactive">Inactive clinics</option></select></label>
-            <button className="primary-button" type="button" onClick={openCreate}><Plus size={16} /> New clinic</button>
           </div>
           <div className="clinic-table-head"><span>Clinic</span><span>Activity</span><span>Role</span><span>Actions</span></div>
           {loading ? <p className="empty-state clinic-table-empty">Loading clinics…</p> : !filteredClinics.length ? <p className="empty-state clinic-table-empty">No clinic workspace matched your search.</p> : filteredClinics.map((clinic) => {
@@ -218,7 +217,7 @@ export function ClinicOnboardingPage() {
                 <div className="clinic-table-name"><span className="clinic-table-avatar">{clinic.clinicName.slice(0, 1).toUpperCase()}</span><div><strong>{clinic.clinicName}</strong><span>/{clinic.clinicSlug}</span></div></div>
                 <div className="clinic-table-activity"><span>{stats.appointments} bookings</span><span>{stats.chats} chats</span><span>{stats.knowledge} docs</span></div>
                 <div><span className={`clinic-status-pill ${active ? "active" : ""}`}>{active ? "Active" : clinic.role}</span></div>
-                <div className="clinic-table-actions"><button type="button" onClick={() => switchClinic(clinic.clinicId)}>Use</button><button type="button" onClick={() => void openEdit(clinic)}>Edit</button><button type="button" className="icon-danger" onClick={() => void deleteClinic(clinic)}><Trash2 size={14} /></button></div>
+                <div className="clinic-table-actions"><button type="button" title="Use clinic" aria-label={`Use ${clinic.clinicName}`} onClick={() => switchClinic(clinic.clinicId)}><LayoutDashboard size={14} /></button><button type="button" title="Edit clinic" aria-label={`Edit ${clinic.clinicName}`} onClick={() => void openEdit(clinic)}><Edit3 size={14} /></button><button type="button" title="Delete clinic" aria-label={`Delete ${clinic.clinicName}`} className="icon-danger" onClick={() => void deleteClinic(clinic)}><Trash2 size={14} /></button></div>
               </div>
             );
           })}

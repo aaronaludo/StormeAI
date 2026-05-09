@@ -3,10 +3,12 @@ import {
   ArrowRight,
   CalendarCheck,
   Check,
+  CircleDashed,
   ChevronRight,
   ClipboardList,
   DatabaseZap,
   FileText,
+  Pencil,
   Globe2,
   HeartPulse,
   LayoutDashboard,
@@ -20,6 +22,7 @@ import {
   Search,
   Sparkles,
   X,
+  Trash2,
   Stethoscope,
   Users,
 } from "lucide-react";
@@ -94,6 +97,7 @@ type KnowledgeDocument = {
   content: string;
   status: string;
   updatedAt?: string;
+  filePath?: string;
 };
 
 type AppointmentInboxRow = {
@@ -311,7 +315,7 @@ function FloatingPatientChat() {
   }
 
   const selectedReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
-  const selectedReceptionistName = selectedReceptionist?.name || "Mia";
+  const selectedReceptionistName = selectedReceptionist?.name || "Meng";
 
   return (
     <div className={`floating-chat-shell ${open ? "open" : ""}`}>
@@ -726,15 +730,18 @@ function ReceptionistPage() {
     }
   }
 
-  async function addReceptionist() {
+  async function addReceptionist(event?: FormEvent) {
+    event?.preventDefault();
     if (!selectedClinicId) return setStatus("Choose a clinic before adding a receptionist.");
-    const name = window.prompt("Name for the new AI receptionist", "Mia") || "Mia";
+    const name = newReceptionistName.trim() || "New Receptionist";
     setSaving(true);
     try {
       const newId = await createReceptionist(selectedClinicId, name);
       await refreshReceptionists(selectedClinicId, newId);
       const loaded = await loadReceptionistSettings(selectedClinicId, newId);
       setSettings(loaded);
+      setCreateReceptionistOpen(false);
+      setNewReceptionistName("");
       setStatus(`Created and switched to ${loaded.name}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to create receptionist.");
@@ -759,6 +766,8 @@ function ReceptionistPage() {
   }
 
   const [promptOpen, setPromptOpen] = useState(false);
+  const [createReceptionistOpen, setCreateReceptionistOpen] = useState(false);
+  const [newReceptionistName, setNewReceptionistName] = useState("");
   const activeReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
 
   return (
@@ -770,7 +779,7 @@ function ReceptionistPage() {
           <h1>AI Receptionist Studio</h1>
           <p>Design the clinic’s chat-only front desk persona, booking behavior, operating rules, and approved-knowledge boundaries.</p>
         </div>
-        <button className="primary-button" type="button" onClick={addReceptionist} disabled={saving}>{saving ? "Creating…" : "Add receptionist"}</button>
+        <button className="primary-button add-receptionist-button" type="button" onClick={() => setCreateReceptionistOpen(true)} disabled={saving}>{saving ? "Creating…" : <><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg> Add receptionist</>}</button>
       </div>
 
       <section className="ai-receptionist-grid">
@@ -809,7 +818,7 @@ function ReceptionistPage() {
         <aside className="ai-live-summary-panel">
           <div className="summary-ai-card">
             <div className="ai-pulse"><span className="robot-summary-emoji" aria-hidden="true">🤖</span></div>
-            <h3>{settings.name || "Mia"}</h3>
+            <h3>{settings.name || "Meng"}</h3>
             <span>{settings.clinicName || "Selected clinic"}</span>
           </div>
           <div className="summary-stat-list">
@@ -820,12 +829,40 @@ function ReceptionistPage() {
           </div>
           <div className="mini-chat-preview-card">
             <strong>Patient preview</strong>
-            <div className="mini-chat-bubble assistant">Hi! I’m {settings.name || "Mia"}, the clinic AI receptionist. How can I help?</div>
+            <div className="mini-chat-bubble assistant">Hi! I’m {settings.name || "Meng"}, the clinic AI receptionist. How can I help?</div>
             <div className="mini-chat-bubble patient">I want to book an appointment.</div>
             <div className="mini-chat-bubble assistant">Please tap Redirect to enter appointment details clearly.</div>
           </div>
         </aside>
       </section>
+
+
+
+      {createReceptionistOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add AI receptionist">
+          <div className="prompt-modal create-modal ai-receptionist-create-modal">
+            <div className="prompt-modal-header">
+              <div className="ai-modal-title-row">
+                <span className="ai-modal-robot" aria-hidden="true">🤖</span>
+                <div>
+                  <p className="eyebrow">AI Receptionist</p>
+                  <h2>Add receptionist</h2>
+                  <span>Create a new chat-only receptionist persona for this clinic. You can customize tone, language, booking rules, and knowledge behavior after creating it.</span>
+                </div>
+              </div>
+              <button className="ghost-button" type="button" onClick={() => { setCreateReceptionistOpen(false); setNewReceptionistName(""); }}>Close</button>
+            </div>
+            <form className="ai-receptionist-create-form" onSubmit={(event) => void addReceptionist(event)}>
+              <label className="full-field">Receptionist name<input value={newReceptionistName} onChange={(event) => setNewReceptionistName(event.target.value)} placeholder="Dark Lord" autoFocus /></label>
+              <div className="ai-create-info-card">
+                <strong>Default AI Model</strong>
+                <span>This receptionist will use the clinic’s local default model and stay within StormeAI’s chat-only receptionist scope.</span>
+              </div>
+              <button className="primary-button full-field" type="submit" disabled={saving}>{saving ? "Creating…" : "Create receptionist"}</button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {promptOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Live prompt preview">
@@ -1027,6 +1064,9 @@ function KnowledgeBasePage() {
   const [status, setStatus] = useState("Loading clinic knowledge…");
   const [form, setForm] = useState({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [existingAttachmentPath, setExistingAttachmentPath] = useState("");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const approvedCount = documents.filter((source) => source.status === "approved" || source.status === "indexed").length;
@@ -1048,7 +1088,7 @@ function KnowledgeBasePage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("knowledge_documents")
-      .select("id,title,source_type,content,status,updated_at")
+      .select("id,title,source_type,content,status,updated_at,file_path")
       .eq("clinic_id", clinicId)
       .order("updated_at", { ascending: false });
 
@@ -1065,6 +1105,7 @@ function KnowledgeBasePage() {
       content: row.content || "",
       status: row.status,
       updatedAt: row.updated_at,
+      filePath: row.file_path || undefined,
     })));
     setStatus(`${data?.length || 0} source${data?.length === 1 ? "" : "s"} ready for receptionist answers.`);
     setLoading(false);
@@ -1075,27 +1116,63 @@ function KnowledgeBasePage() {
     return subscribeWorkspaceSelection(() => void loadDocuments());
   }, []);
 
+  function openAddSource() {
+    setEditingSourceId(null);
+    setAttachmentFile(null);
+    setExistingAttachmentPath("");
+    setForm({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+    setCreateModalOpen(true);
+  }
+
+  function openEditSource(source: KnowledgeDocument) {
+    setEditingSourceId(source.id);
+    setAttachmentFile(null);
+    setExistingAttachmentPath(source.filePath || "");
+    setForm({ title: source.title, sourceType: source.sourceType, content: source.content, sourceUrl: source.filePath || "" });
+    setCreateModalOpen(true);
+  }
+
   async function addDocument(event: FormEvent) {
     event.preventDefault();
     const clinicId = getWorkspaceSelection().clinicId;
     if (!supabase || !clinicId) return setStatus("Choose a clinic before adding knowledge.");
-    if (!form.title.trim() || !form.content.trim()) return setStatus("Title and content are required.");
+    if (!form.title.trim()) return setStatus("Title is required.");
+    if (!form.content.trim() && !attachmentFile && !existingAttachmentPath) return setStatus("Add content or attach a document.");
 
     setSaving(true);
-    const { error } = await supabase.from("knowledge_documents").insert({
-      clinic_id: clinicId,
+    let nextFilePath = existingAttachmentPath || "";
+    if (attachmentFile) {
+      const safeName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+      const uploadPath = `${clinicId}/${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from("knowledge-documents").upload(uploadPath, attachmentFile, { upsert: false, contentType: attachmentFile.type || undefined });
+      if (uploadError) {
+        setStatus(`Attachment upload failed: ${uploadError.message}`);
+        setSaving(false);
+        return;
+      }
+      nextFilePath = uploadPath;
+    }
+
+    const payload = {
       title: form.title.trim(),
       source_type: form.sourceType,
-      content: form.content.trim(),
+      content: form.content.trim() || (nextFilePath ? `Attached document: ${attachmentFile?.name || nextFilePath.split("/").pop()}` : ""),
       source_url: form.sourceUrl.trim() || null,
+      file_path: nextFilePath || null,
       status: "approved",
-    });
+    };
+    const { error } = editingSourceId
+      ? await supabase.from("knowledge_documents").update(payload).eq("id", editingSourceId).eq("clinic_id", clinicId)
+      : await supabase.from("knowledge_documents").insert({ clinic_id: clinicId, ...payload });
 
-    if (error) setStatus(`Add source failed: ${error.message}`);
+    if (error) setStatus(`${editingSourceId ? "Update" : "Add"} source failed: ${error.message}`);
     else {
       setForm({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
+      setAttachmentFile(null);
+      setExistingAttachmentPath("");
+      setEditingSourceId(null);
       setCreateModalOpen(false);
-      setStatus("Knowledge source added and approved.");
+      setStatus(editingSourceId ? "Knowledge source updated and approved." : "Knowledge source added and approved.");
       await loadDocuments();
     }
     setSaving(false);
@@ -1108,6 +1185,19 @@ function KnowledgeBasePage() {
     else await loadDocuments();
   }
 
+  async function deleteDocument(source: KnowledgeDocument) {
+    if (!supabase) return;
+    const confirmed = window.confirm(`Delete knowledge source “${source.title}”?`);
+    if (!confirmed) return;
+    const clinicId = getWorkspaceSelection().clinicId;
+    const { error } = await supabase.from("knowledge_documents").delete().eq("id", source.id).eq("clinic_id", clinicId);
+    if (error) setStatus(`Delete failed: ${error.message}`);
+    else {
+      setStatus("Knowledge source deleted.");
+      await loadDocuments();
+    }
+  }
+
   return (
     <section className="knowledge-modern-page">
       <div className="knowledge-hero-card">
@@ -1117,7 +1207,7 @@ function KnowledgeBasePage() {
           <h1>Knowledge base</h1>
           <p>Manage the verified FAQs, policies, services, prices, and notes your AI receptionist can use in patient chats.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={17} /> Add source</button>
+        <button className="primary-button" type="button" onClick={openAddSource}><Plus size={17} /> Add source</button>
       </div>
 
       <section className="knowledge-command-grid">
@@ -1146,15 +1236,15 @@ function KnowledgeBasePage() {
           <div className="knowledge-directory-controls">
             <label className="knowledge-directory-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, type, status, content…" /></label>
             <label className="knowledge-directory-filter">Filter<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">All sources</option><option value="approved">Approved</option><option value="indexed">Indexed</option><option value="draft">Draft</option><option value="faq">FAQ</option><option value="service">Service</option><option value="policy">Policy</option><option value="document">Document</option><option value="website">Website</option><option value="note">Note</option></select></label>
-            <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={16} /> New source</button>
+            <button className="primary-button" type="button" onClick={openAddSource}><Plus size={16} /> New source</button>
           </div>
           <div className="knowledge-table-head"><span>Source</span><span>Type</span><span>Status</span><span>Actions</span></div>
           {loading ? <p className="empty-state knowledge-table-empty">Loading knowledge…</p> : !filteredDocuments.length ? <p className="empty-state knowledge-table-empty">No knowledge source matched your filters.</p> : filteredDocuments.map((source) => (
             <div className="knowledge-table-row" key={source.id}>
-              <div className="knowledge-table-source"><span className="knowledge-source-avatar"><FileText size={18} /></span><div><strong>{source.title}</strong><span>{source.content.slice(0, 130)}{source.content.length > 130 ? "…" : ""}</span></div></div>
+              <div className="knowledge-table-source"><span className="knowledge-source-avatar"><FileText size={18} /></span><div><strong>{source.title}</strong><span>{source.filePath ? `Attachment: ${source.filePath.split("/").pop()} · ` : ""}{source.content.slice(0, 130)}{source.content.length > 130 ? "…" : ""}</span></div></div>
               <div><span className="knowledge-type-pill">{source.sourceType}</span></div>
               <div><span className={`badge ${source.status === "approved" || source.status === "indexed" ? "green" : "amber"}`}>{source.status}</span></div>
-              <div className="knowledge-table-actions"><button type="button" onClick={() => updateDocumentStatus(source.id, source.status === "approved" ? "draft" : "approved")}>{source.status === "approved" ? "Move to draft" : "Approve"}</button></div>
+              <div className="knowledge-table-actions"><button type="button" title="Update" aria-label={`Update ${source.title}`} onClick={() => openEditSource(source)}><Pencil size={15} /></button><button className={`status-toggle ${source.status === "approved" ? "active" : "draft"}`} type="button" title={source.status === "approved" ? "Move to draft" : "Approve"} aria-label={`${source.status === "approved" ? "Move to draft" : "Approve"} ${source.title}`} onClick={() => updateDocumentStatus(source.id, source.status === "approved" ? "draft" : "approved")}>{source.status === "approved" ? <CircleDashed size={15} /> : <Check size={15} />}</button><button className="danger" type="button" title="Delete" aria-label={`Delete ${source.title}`} onClick={() => void deleteDocument(source)}><Trash2 size={15} /></button></div>
             </div>
           ))}
         </div>
@@ -1168,8 +1258,8 @@ function KnowledgeBasePage() {
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add knowledge source">
           <div className="prompt-modal create-modal">
             <div className="prompt-modal-header">
-              <div><p className="eyebrow">Knowledge Base</p><h2>Add approved source</h2></div>
-              <button className="ghost-button" type="button" onClick={() => setCreateModalOpen(false)}>Close</button>
+              <div><p className="eyebrow">Knowledge Base</p><h2>{editingSourceId ? "Update source" : "Add approved source"}</h2></div>
+              <button className="ghost-button" type="button" onClick={() => { setCreateModalOpen(false); setEditingSourceId(null); }}>Close</button>
             </div>
             <form className="kb-form modal-form" onSubmit={addDocument}>
               <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Source title, e.g. Dental cleaning pricing" />
@@ -1183,7 +1273,8 @@ function KnowledgeBasePage() {
               </select>
               <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved clinic answer/content here…" />
               <input value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} placeholder="Optional source URL" />
-              <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : "Add approved source"}</button>
+              <label className="knowledge-attachment-drop">Attachment<input type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)} /><span>{attachmentFile ? attachmentFile.name : existingAttachmentPath ? `Current: ${existingAttachmentPath.split("/").pop()}` : "Attach PDF, DOC, DOCX, TXT, MD, CSV, etc."}</span></label>
+              <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : editingSourceId ? "Update source" : "Add approved source"}</button>
             </form>
           </div>
         </div>
@@ -1834,6 +1925,7 @@ function IntegrationsPage() {
   const [selectedWidgetReceptionistId, setSelectedWidgetReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
   const [widgetReceptionists, setWidgetReceptionists] = useState<ReceptionistOption[]>([]);
   const [integrationStatus, setIntegrationStatus] = useState("Loading AI receptionists…");
+  const [scriptCopied, setScriptCopied] = useState(false);
   const clinicId = selectedClinicId || "CLINIC_UUID";
   const receptionistId = selectedWidgetReceptionistId || "OPTIONAL_RECEPTIONIST_UUID";
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://YOUR_SUPABASE_PROJECT.supabase.co";
@@ -1880,6 +1972,12 @@ function IntegrationsPage() {
     return subscribeWorkspaceSelection(() => void loadWidgetReceptionists());
   }, []);
 
+  async function copyWidgetScript() {
+    await navigator.clipboard.writeText(snippet);
+    setScriptCopied(true);
+    window.setTimeout(() => setScriptCopied(false), 1600);
+  }
+
   function chooseWidgetReceptionist(receptionistId: string) {
     setSelectedWidgetReceptionistId(receptionistId);
     if (selectedClinicId) persistWorkspaceSelection({ clinicId: selectedClinicId, receptionistId });
@@ -1894,7 +1992,7 @@ function IntegrationsPage() {
           <h1>Integrations</h1>
           <p>Connect StormeAI to clinic websites and choose which AI Receptionist powers each embedded widget.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy widget script</button>
+        <button className={`primary-button copy-script-button ${scriptCopied ? "copied" : ""}`} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied!" : "Copy widget script"}</button>
       </div>
 
       <section className="integrations-command-grid">
@@ -1933,7 +2031,7 @@ function IntegrationsPage() {
             <div className="integrations-table-channel"><span className="integrations-channel-avatar"><Globe2 size={20} /></span><div><strong>Website chat widget</strong><span>Embed on the clinic website before the closing body tag.</span></div></div>
             <div><span className="integration-status-pill ready">Ready</span></div>
             <div className="integrations-table-setup"><span>Clinic: {clinicId}</span><span>Receptionist: {activeWidgetReceptionist?.name || receptionistId}</span></div>
-            <div className="integrations-table-actions"><button type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button></div>
+            <div className="integrations-table-actions"><button className={scriptCopied ? "copied" : ""} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied" : "Copy script"}</button></div>
           </div>
         </div>
 
@@ -1947,9 +2045,9 @@ function IntegrationsPage() {
       <section className="integration-script-card">
         <div className="integration-script-heading">
           <div><p className="eyebrow">Embed script</p><h2>Paste before closing body tag</h2><span>Script is generated for {activeWidgetReceptionist?.name || "the selected AI receptionist"}.</span></div>
-          <button className="primary-button" type="button" onClick={() => navigator.clipboard.writeText(snippet)}>Copy script</button>
+          <button className={`primary-button copy-script-button ${scriptCopied ? "copied" : ""}`} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied!" : "Copy script"}</button>
         </div>
-        <div className="embed-code-box modern"><pre>{snippet}</pre></div>
+        <div className={`embed-code-box modern ${scriptCopied ? "copied" : ""}`}><pre>{snippet}</pre>{scriptCopied && <span className="copy-success-pop">Copied to clipboard</span>}</div>
       </section>
     </section>
   );

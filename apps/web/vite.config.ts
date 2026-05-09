@@ -331,7 +331,7 @@ function buildPrompt(context: ReceptionistContext, citations: KnowledgeItem[]) {
   const settings = context.settings || {};
   const knowledge = citations.length ? citations.map((item, index) => `[${index + 1}] ${item.title || "Clinic source"}: ${item.content}`).join("\n") : "No matching approved clinic knowledge found.";
   return [
-    `You are ${context.name || "Mia"}, StormeAI chat-only receptionist for ${clinic?.name || "this clinic"}.`,
+    `You are ${context.name || "Meng"}, StormeAI chat-only receptionist for ${clinic?.name || "this clinic"}.`,
     `Clinic type: ${clinic?.clinic_type || "clinic"}.`,
     `Tone: ${context.tone || "warm, professional, concise"}.`,
     `Language: ${context.language_style || "English, with Taglish when appropriate"}. Reply in English unless the patient writes in Tagalog/Taglish. Do not mix in other languages or scripts.`,
@@ -350,7 +350,7 @@ function answerCommonReceptionistQuestion(message: string, context: Receptionist
   const lower = message.toLowerCase();
   const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
   const settings = context.settings || {};
-  const receptionistName = context.name || "Mia";
+  const receptionistName = context.name || "Meng";
   const clinicName = clinic?.name || "the clinic";
 
   if (["what's your name", "what is your name", "who are you", "your name"].some((term) => lower.includes(term))) {

@@ -48,7 +48,7 @@ as $$
   order by ar.updated_at desc, ar.created_at desc;
 $$;
 
-create or replace function public.create_ai_receptionist(target_clinic_id uuid, receptionist_name text default 'Mia')
+create or replace function public.create_ai_receptionist(target_clinic_id uuid, receptionist_name text default 'Meng')
 returns uuid
 language plpgsql
 security definer
@@ -67,7 +67,7 @@ begin
   end if;
 
   insert into public.ai_receptionists (clinic_id, name)
-  values (target_clinic_id, coalesce(nullif(receptionist_name, ''), 'Mia'))
+  values (target_clinic_id, coalesce(nullif(receptionist_name, ''), 'Meng'))
   returning id into new_receptionist_id;
 
   return new_receptionist_id;

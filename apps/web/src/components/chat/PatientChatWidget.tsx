@@ -25,7 +25,7 @@ function starterMessagesFor(receptionistName: string): Message[] {
   ];
 }
 
-export function PatientChatWidget({ receptionistName = "Mia" }: PatientChatWidgetProps) {
+export function PatientChatWidget({ receptionistName = "Meng" }: PatientChatWidgetProps) {
   const [state, setState] = useState<WidgetState>("live");
   const [messages, setMessages] = useState<Message[]>(() => starterMessagesFor(receptionistName));
   const [input, setInput] = useState("");

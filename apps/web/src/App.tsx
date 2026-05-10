@@ -248,7 +248,7 @@ function LandingPage() {
       <section className="landing-hero editorial-hero" id="product">
         <div className="landing-hero-copy editorial-hero-copy">
           <span className="landing-kicker"><span /> AI patient chat support for clinics</span>
-          <h1>Convert patient messages into booking requests.<br /><strong>Automatically.</strong></h1>
+          <h1>Better Care Begins with <strong>Every Answer.</strong></h1>
           <p>StormeAI helps clinics answer patient questions, collect appointment details, and route conversations to staff when human review is needed.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/auth/sign-up">Get started</Link>

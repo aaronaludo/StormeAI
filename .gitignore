@@ -31,3 +31,4 @@ pnpm-debug.log*
 
 # Supabase local/link metadata
 supabase/.temp/
+.aider*

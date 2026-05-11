@@ -186,11 +186,12 @@ function App() {
 
 function LandingPage() {
   const [isLandingMenuOpen, setIsLandingMenuOpen] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const landingMenuLinks = [
     { label: "Product", href: "#product" },
     { label: "How it works", href: "#how-it-works" },
     { label: "Pricing", href: "#pricing" },
-    { label: "FAQ", href: "#faq" },
+    { label: "FAQs", href: "#faq" },
   ];
 
   const closeLandingMenu = () => setIsLandingMenuOpen(false);
@@ -205,21 +206,40 @@ function LandingPage() {
   ];
 
   const setupSteps = [
-    { step: "Step 01", title: "Connect a channel", text: "Use Messenger, phone/SMS, or the StormeAI web widget." },
-    { step: "Step 02", title: "Drop in your knowledge", text: "Upload services, pricing, policies, FAQs, and clinic rules." },
-    { step: "Step 03", title: "Set the rules", text: "Choose booking, triage, fallback, and priority-intake behavior." },
-    { step: "Step 04", title: "Go live and review", text: "Every patient conversation stays searchable with clear booking context and outcomes." },
+    { step: "Step 01", title: "Connect a channel", text: "Use Messenger, phone/SMS, or the StormeAI web widget.", icon: MessageSquareText },
+    { step: "Step 02", title: "Drop in your knowledge", text: "Upload services, pricing, policies, FAQs, and clinic rules.", icon: BookOpen },
+    { step: "Step 03", title: "Set the rules", text: "Choose booking, triage, fallback, and priority-intake behavior.", icon: Settings2 },
+    { step: "Step 04", title: "Go live and review", text: "Every patient conversation stays searchable with clear booking context and outcomes.", icon: Activity },
   ];
 
-  const pricingItems = [
-    "Multiple clinic workspaces",
-    "Unlimited patient chats",
-    "Messenger, phone/SMS, and web widget",
-    "Clinic knowledge base setup",
-    "Booking request collection",
-    "Priority intake workflows",
-    "Conversation dashboard",
-    "Review-ready chat history",
+  const pricingPlans = [
+    {
+      name: "Launch",
+      eyebrow: "For new clinics",
+      price: "Custom",
+      description: "Start with AI patient chat, approved clinic knowledge, and simple booking request capture.",
+      cta: "Start Launch",
+      highlighted: false,
+      features: ["1 clinic workspace", "Messenger or web widget", "AI receptionist setup", "Booking request flow", "Knowledge base import"],
+    },
+    {
+      name: "Growth",
+      eyebrow: "Most popular",
+      price: "Custom",
+      description: "A premium automation layer for busy clinics managing conversations across every patient channel.",
+      cta: "Get Growth pricing",
+      highlighted: true,
+      features: ["Unlimited patient chats", "Messenger + SMS + widget", "Priority intake workflows", "Conversation analytics", "Follow-up and reminder flows", "Premium onboarding"],
+    },
+    {
+      name: "Network",
+      eyebrow: "Multi-location",
+      price: "Custom",
+      description: "Designed for clinic groups that need shared standards, multiple workspaces, and advanced rollout support.",
+      cta: "Talk to sales",
+      highlighted: false,
+      features: ["Multiple clinic workspaces", "Branch-level knowledge", "Team workflow controls", "Custom integrations", "Dedicated support"],
+    },
   ];
 
   const channelItems = [
@@ -229,11 +249,17 @@ function LandingPage() {
   ];
 
   const faqs = [
-    ["Will patients know they are talking to AI?", "StormeAI is transparent when asked and can introduce itself by your clinic receptionist name."],
-    ["Can it use my existing channels?", "Yes. Use Messenger, phone/SMS, and the embeddable website widget."],
-    ["What happens when the AI does not know the answer?", "It follows your fallback rules, asks clarifying questions, and keeps the conversation inside your approved clinic workflow."],
-    ["How long does setup take?", "Most clinics can prepare a first workflow quickly once services, policies, and contact details are ready."],
-    ["Where is my data stored?", "Clinic data is handled inside your secure StormeAI workspace."],
+    ["How does AI patient support work?", "StormeAI answers patient questions using the clinic information you approve, then collects structured details for appointment requests and follow-up workflows."],
+    ["Can StormeAI help with appointment booking?", "Yes. It can gather the service, preferred time, patient contact details, and notes so booking requests arrive organized and easy to review."],
+    ["How long does clinic setup take?", "Most clinics can prepare a first workflow quickly once services, prices, policies, clinic hours, and common FAQs are ready."],
+    ["Does it connect with Facebook Messenger?", "Yes. StormeAI is designed for Messenger inquiries so clinics can respond quickly where many patients already message."],
+    ["Is SMS support included?", "Yes. SMS-style patient messaging can support confirmations, reminders, and follow-up conversations depending on your clinic workflow."],
+    ["Will patients know they are talking to an AI receptionist?", "StormeAI can introduce itself clearly using your clinic receptionist name and keeps responses aligned with your approved tone and policies."],
+    ["How is patient privacy handled?", "Clinic information and conversation workflows stay inside your StormeAI workspace, with privacy-first setup practices and controlled knowledge sources."],
+    ["Can it answer questions outside clinic hours?", "Yes. StormeAI can provide 24/7 patient chat coverage for common questions, booking requests, and next-step guidance."],
+    ["How fast are responses?", "Most routine inquiries can be answered instantly, helping patients get clear next steps without waiting for office hours."],
+    ["Can it support multiple languages?", "StormeAI can be configured for multilingual patient conversations depending on the languages your clinic wants to support."],
+    ["What support is available after launch?", "Your clinic can receive onboarding guidance, workflow refinement, and ongoing support based on the plan and rollout scope."],
   ];
 
   return (
@@ -331,13 +357,19 @@ function LandingPage() {
           <p>Connect your patient channels, add approved clinic information, define booking rules, and customize how conversations should progress.</p>
         </div>
         <div className="setup-grid">
-          {setupSteps.map((item) => (
-            <article key={item.step}>
-              <span>{item.step}</span>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </article>
-          ))}
+          {setupSteps.map((item) => {
+            const StepIcon = item.icon;
+            return (
+              <article key={item.step}>
+                <div className="setup-card-top">
+                  <span>{item.step}</span>
+                  <div className="setup-icon"><StepIcon size={20} /></div>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -352,56 +384,78 @@ function LandingPage() {
       </section>
 
       <section className="landing-section landing-pricing-section editorial-pricing" id="pricing">
-        <div>
-          <p className="landing-kicker"><span /> Pricing</p>
-          <h2><strong>One plan</strong> for StormeAI clinic support.</h2>
-          <p>Includes AI patient chat assistance, clinic workspaces, unlimited conversations, approved knowledge setup, booking request flows, and priority intake tools.</p>
-          <div className="price-box">
-            <span>All-in package</span>
-            <strong>Custom</strong>
-            <p>monthly plan based on your clinic setup</p>
-            <Link className="primary-button" to="/auth/sign-up">Get pricing <ArrowRight size={17} /></Link>
+        <div className="pricing-shell">
+          <div className="landing-section-heading center pricing-heading">
+            <p className="landing-kicker"><span /> Pricing</p>
+            <h2>Choose the <strong>clinic AI layer</strong> that fits your growth.</h2>
+            <p>Premium patient support, booking automation, and approved clinic knowledge workflows in plans that scale with your operations.</p>
           </div>
-        </div>
-        <div className="receipt-card">
-          <div className="receipt-head">
-            <span>StormeAI · Plan receipt</span>
-            <span>Clinic Growth</span>
+          <div className="pricing-card-grid">
+            {pricingPlans.map((plan) => (
+              <article className={`pricing-card ${plan.highlighted ? "featured" : ""}`} key={plan.name}>
+                {plan.highlighted && <div className="popular-pill"><Sparkles size={14} /> Popular for busy clinics</div>}
+                <div className="pricing-card-head">
+                  <span>{plan.eyebrow}</span>
+                  <h3>{plan.name}</h3>
+                  <p>{plan.description}</p>
+                </div>
+                <div className="pricing-price">
+                  <strong>{plan.price}</strong>
+                  <small>tailored monthly plan</small>
+                </div>
+                <Link className={plan.highlighted ? "primary-button" : "ghost-button"} to="/auth/sign-up">{plan.cta} <ArrowRight size={16} /></Link>
+                <ul>
+                  {plan.features.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}
+                </ul>
+              </article>
+            ))}
           </div>
-          {pricingItems.map((item, index) => (
-            <div className="receipt-row" key={item}><span>0{index + 1}</span><strong>{item}</strong><Check size={17} /></div>
-          ))}
-          <div className="receipt-total"><span>Included</span><strong>Everything above</strong></div>
+          <div className="pricing-trust-row">
+            <span><ShieldCheck size={16} /> Privacy-first workflows</span>
+            <span><MessageSquareText size={16} /> Unlimited conversation path</span>
+            <span><Globe2 size={16} /> Messenger, SMS, and widget ready</span>
+          </div>
         </div>
       </section>
 
       <section className="landing-section faq-section" id="faq">
-        <div>
-          <p className="landing-kicker"><span /> FAQ</p>
-          <h2>Things clinic operators actually ask.</h2>
+        <div className="faq-intro">
+          <p className="landing-kicker"><span /> FAQs</p>
+          <h2>Clear answers for modern clinic teams.</h2>
+          <p>Everything operators usually want to know before adding an AI receptionist to patient conversations.</p>
           <a className="contact-pill" href="mailto:hello@stormeai.com"><Mail size={16} /> hello@stormeai.com</a>
         </div>
         <div className="faq-list">
-          {faqs.map(([question, answer], index) => (
-            <article key={question} className={index === 0 ? "open" : ""}>
-              <div><h3>{question}</h3><span>{index === 0 ? "x" : "+"}</span></div>
-              {index === 0 && <p>{answer}</p>}
-            </article>
-          ))}
+          {faqs.map(([question, answer], index) => {
+            const isOpen = openFaqIndex === index;
+            return (
+              <article key={question} className={isOpen ? "open" : ""}>
+                <button type="button" onClick={() => setOpenFaqIndex(isOpen ? -1 : index)} aria-expanded={isOpen}>
+                  <h3>{question}</h3>
+                  <span>{isOpen ? <X size={16} /> : <Plus size={16} />}</span>
+                </button>
+                <div className="faq-answer"><p>{answer}</p></div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
       <section className="landing-section final-cta">
-        <div>
+        <div className="final-cta-copy">
           <p className="landing-kicker"><span /> Ready when you are</p>
-          <h2>Let every patient chat get an answer. <strong>Instantly.</strong></h2>
-          <p>Launch StormeAI for patient questions, appointment requests, follow-ups, and priority intake workflows.</p>
+          <h2>Give patients instant answers with a calmer clinic workflow.</h2>
+          <p>Launch a premium AI receptionist that supports patient questions, captures appointment intent, and keeps every conversation moving with confidence.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/auth/sign-up"><MessageSquareText size={17} /> Try a live chat</Link>
             <a className="ghost-button" href="mailto:hello@stormeai.com">Book a 15-min demo</a>
           </div>
         </div>
-        <div className="final-orb"><MessageSquareText size={48} /></div>
+        <div className="final-cta-panel">
+          <div className="final-orb"><MessageSquareText size={48} /></div>
+          <strong>24/7</strong>
+          <span>AI patient support coverage</span>
+        </div>
       </section>
 
       <footer className="landing-footer editorial-footer">
@@ -426,7 +480,7 @@ function LandingPage() {
         </div>
         <div>
           <strong>Company</strong>
-          <a href="#faq">FAQ</a>
+          <a href="#faq">FAQs</a>
           <a href="#privacy">Privacy Policy</a>
           <a href="#terms">Terms of Service</a>
         </div>
@@ -434,6 +488,7 @@ function LandingPage() {
           <strong>Contact</strong>
           <a href="mailto:hello@stormeai.com">hello@stormeai.com</a>
           <span>Messenger · SMS · Web widget</span>
+          <a className="footer-contact-pill" href="mailto:hello@stormeai.com"><Mail size={14} /> Contact sales</a>
         </div>
       </footer>
     </main>

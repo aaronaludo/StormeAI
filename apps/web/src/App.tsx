@@ -52,6 +52,11 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number }>;
 };
 
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
 function RobotEmojiIcon({ size = 18 }: { size?: number }) {
   return <span className="robot-emoji-icon" style={{ fontSize: size }} aria-hidden="true">🤖</span>;
 }
@@ -63,17 +68,35 @@ type Metric = {
   tone: "blue" | "teal" | "green" | "amber" | "red";
 };
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", path: "dashboard", icon: LayoutDashboard },
-  { label: "Chats", path: "chats", icon: MessageSquareText },
-  { label: "Clinics", path: "clinics", icon: ClipboardList },
-  { label: "AI Receptionist", path: "ai-receptionist", icon: RobotEmojiIcon },
-  { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
-  { label: "Appointments", path: "appointments", icon: CalendarCheck },
-  { label: "Marketing", path: "marketing", icon: Megaphone },
-  { label: "Integrations", path: "integrations", icon: Globe2 },
-  { label: "Account Settings", path: "account", icon: Settings2 },
+const primaryNavItem: NavItem = { label: "Dashboard", path: "dashboard", icon: LayoutDashboard };
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Build & Deploy",
+    items: [
+      { label: "AI Receptionist", path: "ai-receptionist", icon: RobotEmojiIcon },
+      { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
+      { label: "Integrations", path: "integrations", icon: Globe2 },
+    ],
+  },
+  {
+    label: "Monitor",
+    items: [
+      { label: "Chats", path: "chats", icon: MessageSquareText },
+      { label: "Appointments", path: "appointments", icon: CalendarCheck },
+      { label: "Marketing", path: "marketing", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Organization",
+    items: [
+      { label: "Clinics", path: "clinics", icon: ClipboardList },
+      { label: "Account Settings", path: "account", icon: Settings2 },
+    ],
+  },
 ];
+
+const navItems: NavItem[] = [primaryNavItem, ...navGroups.flatMap((group) => group.items)];
 
 const metrics: Metric[] = [
   { label: "Chats today", value: "48", delta: "+18% vs yesterday", tone: "blue" },
@@ -498,11 +521,27 @@ function LandingPage() {
 function AppLayout() {
   const { clinicId } = useParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [testChatOpen, setTestChatOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(localStorage.getItem("stormeai-sidebar-width") || 292));
 
   useEffect(() => {
     if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
   }, [clinicId]);
+
+  useEffect(() => {
+    if (!testChatOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setTestChatOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [testChatOpen]);
+
+  useEffect(() => {
+    function openHandler() { setTestChatOpen(true); }
+    window.addEventListener("storme:open-test-chat", openHandler);
+    return () => window.removeEventListener("storme:open-test-chat", openHandler);
+  }, []);
 
   function startSidebarResize(event: React.PointerEvent<HTMLButtonElement>) {
     event.preventDefault();
@@ -527,7 +566,7 @@ function AppLayout() {
   }
 
   return (
-    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
+    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""} ${testChatOpen ? "test-chat-open" : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
       <button className="sidebar-menu-toggle" type="button" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar menu">
         <Menu size={21} />
         <span>Menu</span>
@@ -535,10 +574,113 @@ function AppLayout() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close sidebar menu" onClick={() => setSidebarOpen(false)} />}
       <Sidebar onNavigate={() => setSidebarOpen(false)} onClose={() => setSidebarOpen(false)} onResizeStart={startSidebarResize} />
       <main className="main-panel">
+        <AppHeader onToggleTestChat={() => setTestChatOpen((current) => !current)} testChatOpen={testChatOpen} />
         <Outlet />
       </main>
-      <FloatingPatientChat />
+      <TestChatSidebar open={testChatOpen} onClose={() => setTestChatOpen(false)} />
     </div>
+  );
+}
+
+function AppHeader({ onToggleTestChat, testChatOpen }: { onToggleTestChat: () => void; testChatOpen: boolean }) {
+  const navigate = useNavigate();
+  const { session } = useAuthState();
+  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
+  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadReceptionists() {
+      const clinicId = getWorkspaceSelection().clinicId;
+      if (!clinicId) {
+        if (mounted) setReceptionists([]);
+        return;
+      }
+      try {
+        const items = await listReceptionists(clinicId);
+        if (!mounted) return;
+        setReceptionists(items);
+        const current = getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
+        setSelectedReceptionistId(current);
+      } catch {
+        if (mounted) setReceptionists([]);
+      }
+    }
+    void loadReceptionists();
+    const unsubscribe = subscribeWorkspaceSelection(() => void loadReceptionists());
+    return () => { mounted = false; unsubscribe(); };
+  }, []);
+
+  function switchReceptionist(receptionistId: string) {
+    const clinicId = getWorkspaceSelection().clinicId;
+    setSelectedReceptionistId(receptionistId);
+    persistWorkspaceSelection({ clinicId, receptionistId });
+  }
+
+  async function logout() {
+    await supabase?.auth.signOut();
+    navigate("/auth/sign-in", { replace: true });
+  }
+
+  const selected = receptionists.find((item) => item.receptionistId === selectedReceptionistId) || receptionists[0];
+  const initials = (selected?.name || "AI").split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "AI";
+  const userEmail = session?.user.email || "Signed in";
+
+  return (
+    <header className="app-header">
+      <div className="app-header-left" />
+      <div className="app-header-right">
+        <button
+          type="button"
+          className={`header-test-button ${testChatOpen ? "active" : ""}`}
+          onClick={onToggleTestChat}
+          aria-pressed={testChatOpen}
+        >
+          <MessageSquareText size={15} />
+          <span>{testChatOpen ? "Close test" : "Test chat"}</span>
+        </button>
+
+        <div className="header-receptionist-pill">
+          <span className="header-receptionist-avatar">{initials}</span>
+          <select aria-label="Active receptionist" value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
+            {receptionists.length === 0 && <option value="">No receptionist</option>}
+            {receptionists.map((item) => (
+              <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className={`header-profile ${profileOpen ? "open" : ""}`}>
+          <button
+            type="button"
+            className="header-profile-button"
+            onClick={() => setProfileOpen((current) => !current)}
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+            aria-label="Open profile menu"
+          >
+            <UserRound size={16} />
+            <ChevronRight size={12} className="header-profile-chevron" />
+          </button>
+          {profileOpen && (
+            <>
+              <button className="header-profile-scrim" type="button" aria-label="Close profile menu" onClick={() => setProfileOpen(false)} />
+              <div className="header-profile-menu" role="menu">
+                <div className="header-profile-info">
+                  <strong>{userEmail}</strong>
+                  <span>Receptionist online</span>
+                </div>
+                <button type="button" className="header-profile-item" onClick={() => { setProfileOpen(false); void logout(); }}>
+                  <LogOut size={15} />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -600,8 +742,7 @@ function RouteLoading({ label }: { label: string }) {
   );
 }
 
-function FloatingPatientChat() {
-  const [open, setOpen] = useState(false);
+function TestChatSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
   const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
 
@@ -609,7 +750,10 @@ function FloatingPatientChat() {
     let mounted = true;
     async function loadReceptionists() {
       const clinicId = getWorkspaceSelection().clinicId;
-      if (!clinicId) return;
+      if (!clinicId) {
+        if (mounted) setReceptionists([]);
+        return;
+      }
       try {
         const items = await listReceptionists(clinicId);
         if (!mounted) return;
@@ -622,7 +766,8 @@ function FloatingPatientChat() {
       }
     }
     void loadReceptionists();
-    return subscribeWorkspaceSelection(() => void loadReceptionists());
+    const unsubscribe = subscribeWorkspaceSelection(() => void loadReceptionists());
+    return () => { mounted = false; unsubscribe(); };
   }, []);
 
   function switchReceptionist(receptionistId: string) {
@@ -635,23 +780,39 @@ function FloatingPatientChat() {
   const selectedReceptionistName = selectedReceptionist?.name || "Meng";
 
   return (
-    <div className={`floating-chat-shell ${open ? "open" : ""}`}>
-      {open && (
-        <div className="floating-chat-panel">
-          <div className="floating-chat-selector">
-            <label>AI receptionist</label>
-            <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-              {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name} · Default AI Model</option>)}
-            </select>
-          </div>
-          <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} receptionistName={selectedReceptionistName} />
+    <aside className={`test-chat-sidebar ${open ? "open" : ""}`} aria-hidden={!open}>
+      <header className="test-chat-header">
+        <div className="test-chat-eyebrow">
+          <span className="test-chat-eyebrow-dot" /> Test chat
+        </div>
+        <button type="button" className="test-chat-close" aria-label="Close test chat" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </header>
+
+      <div className="test-chat-meta">
+        <h3>{selectedReceptionistName}</h3>
+        <p>An AI chat receptionist ready to answer patient questions, capture booking requests, and assist your clinic staff.</p>
+      </div>
+
+      {receptionists.length > 1 && (
+        <div className="test-chat-receptionist-select">
+          <label>AI receptionist</label>
+          <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
+            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>)}
+          </select>
         </div>
       )}
-      <button className="floating-chat-button" type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls="patient-chat-widget">
-        <MessageSquareText size={22} />
-        <span>{open ? "Hide preview" : "AI Receptionist preview"}</span>
-      </button>
-    </div>
+
+      <div className="test-chat-body">
+        <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} receptionistName={selectedReceptionistName} />
+      </div>
+
+      <div className="test-chat-footer-hint">
+        <kbd>ESC</kbd>
+        <span>to close</span>
+      </div>
+    </aside>
   );
 }
 
@@ -669,6 +830,9 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
     navigate("/auth/sign-in", { replace: true });
   }
 
+  const primaryPath = activeClinicId ? clinicPagePath(activeClinicId, primaryNavItem.path) : "/dashboard";
+  const PrimaryIcon = primaryNavItem.icon;
+
   return (
     <aside className="sidebar">
       <button className="sidebar-close-button" type="button" onClick={onClose} aria-label="Close sidebar menu"><X size={18} /></button>
@@ -682,16 +846,36 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
 
       <ClinicSwitcher />
 
-      <nav className="nav-list">
-        {navItems.map((item) => {
-          const path = activeClinicId ? clinicPagePath(activeClinicId, item.path) : "/dashboard";
-          return (
-            <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label} onClick={onNavigate}>
-              <item.icon size={18} />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+      <nav className="nav-list grouped-nav">
+        <NavLink
+          className={({ isActive }) => `nav-item nav-item-primary ${isActive ? "active" : ""}`}
+          to={primaryPath}
+          end
+          onClick={onNavigate}
+        >
+          <PrimaryIcon size={18} />
+          <span>{primaryNavItem.label}</span>
+        </NavLink>
+
+        {navGroups.map((group) => (
+          <div className="nav-group" key={group.label}>
+            <div className="nav-group-header">
+              <span>{group.label}</span>
+              <ChevronRight size={14} />
+            </div>
+            <div className="nav-group-items">
+              {group.items.map((item) => {
+                const path = activeClinicId ? clinicPagePath(activeClinicId, item.path) : "/dashboard";
+                return (
+                  <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label} onClick={onNavigate}>
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="sidebar-card account-card">
@@ -785,6 +969,8 @@ function LegacyClinicPageRedirect({ page }: { page: string }) {
 
 function DashboardPage() {
   const { clinicId } = useParams();
+  const navigate = useNavigate();
+  const { session } = useAuthState();
   const [stats, setStats] = useState({
     chats: 0,
     sessions: 0,
@@ -795,8 +981,8 @@ function DashboardPage() {
     marketingContacts: 0,
     receptionistCount: 0,
   });
-  const [trend, setTrend] = useState<Array<{ label: string; chats: number; appointments: number }>>([]);
-  const [status, setStatus] = useState("Loading analytics…");
+  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
+  const [, setStatus] = useState("Loading analytics…");
 
   async function loadDashboardStats() {
     const activeClinicId = clinicId || getWorkspaceSelection().clinicId;
@@ -804,20 +990,14 @@ function DashboardPage() {
     if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
     if (!supabase) return setStatus("Supabase is not configured.");
 
-    const since = new Date();
-    since.setDate(since.getDate() - 6);
-    since.setHours(0, 0, 0, 0);
-
-    const [messages, sessions, appointments, requested, confirmed, knowledge, receptionists, recentMessages, recentAppointments, appointmentContacts] = await Promise.all([
+    const [messages, sessions, appointments, requested, confirmed, knowledge, receptionistList, appointmentContacts] = await Promise.all([
       supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
       supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
       supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
       supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "requested"),
       supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "confirmed"),
       supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      listReceptionists(activeClinicId).then((items) => ({ count: items.length, data: items, error: null })).catch((error) => ({ count: 0, data: [], error })),
-      supabase.from("chat_messages").select("created_at").eq("clinic_id", activeClinicId).gte("created_at", since.toISOString()),
-      supabase.from("appointments").select("created_at,requested_start_at,scheduled_start_at").eq("clinic_id", activeClinicId).limit(500),
+      listReceptionists(activeClinicId).then((items) => ({ count: items.length, data: items, error: null })).catch((error) => ({ count: 0, data: [] as ReceptionistOption[], error })),
       supabase.from("appointments").select("patients(id,email,phone)").eq("clinic_id", activeClinicId),
     ]);
 
@@ -836,93 +1016,147 @@ function DashboardPage() {
       confirmedAppointments: confirmed.count || 0,
       knowledge: knowledge.count || 0,
       marketingContacts: contactKeys.size,
-      receptionistCount: receptionists.count || 0,
+      receptionistCount: receptionistList.count || 0,
     });
-    setTrend(buildDashboardTrend(recentMessages.data || [], recentAppointments.data || []));
+    setReceptionists(receptionistList.data || []);
     setStatus("Clinic analytics loaded.");
   }
 
   useEffect(() => {
     void loadDashboardStats();
+    return subscribeWorkspaceSelection(() => void loadDashboardStats());
   }, [clinicId]);
 
   const activeClinicId = clinicId || getWorkspaceSelection().clinicId || "";
-  const healthScore = Math.min(100, Math.round(((stats.knowledge ? 30 : 0) + (stats.receptionistCount ? 25 : 0) + (stats.appointments ? 25 : 0) + (stats.sessions ? 20 : 0))));
-  const [animatedHealthScore, setAnimatedHealthScore] = useState(0);
-  const conversionRate = stats.sessions ? Math.round((stats.appointments / stats.sessions) * 100) : 0;
 
-  useEffect(() => {
-    let frame = 0;
-    let start: number | null = null;
-    const duration = 1450;
-    const tick = (timestamp: number) => {
-      if (start === null) start = timestamp;
-      const progress = Math.min(1, (timestamp - start) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setAnimatedHealthScore(Math.round(healthScore * eased));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    setAnimatedHealthScore(0);
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [healthScore, activeClinicId]);
+  // Greeting
+  const hour = new Date().getHours();
+  const greetingPart = hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const userEmail = session?.user.email || "";
+  const fullName = (session?.user.user_metadata as { full_name?: string; name?: string } | undefined)?.full_name
+    || (session?.user.user_metadata as { full_name?: string; name?: string } | undefined)?.name
+    || "";
+  const firstName = fullName.split(/\s+/)[0] || userEmail.split("@")[0] || "there";
+
+  const receptionistCount = receptionists.length || stats.receptionistCount;
+  const receptionistWord = receptionistCount === 1 ? "receptionist" : "receptionists";
+
+  function openTestChat() {
+    window.dispatchEvent(new CustomEvent("storme:open-test-chat"));
+  }
+
+  function openReceptionistSetup(receptionistId?: string) {
+    if (receptionistId) {
+      persistWorkspaceSelection({ clinicId: activeClinicId, receptionistId });
+    }
+    navigate(clinicPagePath(activeClinicId, "ai-receptionist"));
+  }
+
+  function openChats(receptionistId?: string) {
+    if (receptionistId) {
+      persistWorkspaceSelection({ clinicId: activeClinicId, receptionistId });
+    }
+    navigate(clinicPagePath(activeClinicId, "chats"));
+  }
+
+  function createReceptionistFlow() {
+    navigate(clinicPagePath(activeClinicId, "ai-receptionist"));
+  }
 
   return (
-    <>
-      <section className="hero-grid dashboard-hero-grid">
-        <div className="hero-card dashboard-command-card">
-          <div className="hero-content">
-            <span className="badge teal">Clinic operating overview</span>
-            <h2>StormeAI command center</h2>
-            <p>Track chat activity, appointment demand, patient marketing contacts, knowledge readiness, and integrations from one dashboard.</p>
-            <div className="hero-actions">
-              <NavLink className="primary-button" to={clinicPagePath(activeClinicId, "appointments")}>Review bookings <ArrowRight size={17} /></NavLink>
-              <NavLink className="ghost-button" to={clinicPagePath(activeClinicId, "marketing")}>Open marketing</NavLink>
-            </div>
-          </div>
+    <div className="instack-dashboard">
+      <section className="instack-hero">
+        <div className="instack-hero-text">
+          <span className="instack-hero-eyebrow">Overview</span>
+          <h1 className="instack-hero-title">{greetingPart}, {firstName}.</h1>
+          <p className="instack-hero-subtitle">
+            You have {receptionistCount} {receptionistWord}. Pick where to go next.
+          </p>
         </div>
-        <Panel title="Clinic readiness" subtitle={status} icon={ShieldCheck}>
-          <div className="readiness-ring" style={{ "--score": String(healthScore) } as React.CSSProperties}>
-            <svg viewBox="0 0 120 120" aria-hidden="true">
-              <circle className="readiness-ring-track" cx="60" cy="60" r="48" pathLength="100" />
-              <circle className="readiness-ring-progress" cx="60" cy="60" r="48" pathLength="100" />
-            </svg>
-            <strong>{animatedHealthScore}%</strong><span>ready</span>
+        <button type="button" className="instack-hero-cta" onClick={createReceptionistFlow}>
+          <Plus size={16} />
+          <span>New receptionist</span>
+        </button>
+      </section>
+
+      <section className="instack-stats">
+        <article className="instack-stat-card">
+          <div className="instack-stat-icon instack-stat-icon-blue"><RobotEmojiIcon size={20} /></div>
+          <div>
+            <span className="instack-stat-label">Total receptionists</span>
+            <strong className="instack-stat-value">{receptionistCount}</strong>
           </div>
-          <ConfigList items={[["AI receptionists", String(stats.receptionistCount)], ["Knowledge sources", String(stats.knowledge)], ["Marketing contacts", String(stats.marketingContacts)], ["Booking conversion", `${conversionRate}%`]]} />
-        </Panel>
+        </article>
+        <article className="instack-stat-card">
+          <div className="instack-stat-icon instack-stat-icon-green"><Users size={20} /></div>
+          <div>
+            <span className="instack-stat-label">Active</span>
+            <strong className="instack-stat-value">{receptionistCount}</strong>
+            <p className="instack-stat-foot">{receptionistCount > 0 ? "All running" : "None yet"}</p>
+          </div>
+        </article>
+        <button type="button" className="instack-stat-card instack-stat-action" onClick={openTestChat}>
+          <div className="instack-stat-icon instack-stat-icon-teal"><MessageSquareText size={20} /></div>
+          <div>
+            <span className="instack-stat-label">Quick action</span>
+            <strong className="instack-stat-value instack-stat-value-action">Test chat</strong>
+            <p className="instack-stat-foot">Open the live preview</p>
+          </div>
+          <ChevronRight size={16} className="instack-stat-action-chevron" />
+        </button>
       </section>
 
-      <section className="metrics-grid dashboard-metrics-grid">
-        <MetricCard label="Chat messages" value={String(stats.chats)} delta="All patient/staff messages" tone="blue" />
-        <MetricCard label="Chat sessions" value={String(stats.sessions)} delta="Patient conversations" tone="teal" />
-        <MetricCard label="Appointments" value={String(stats.appointments)} delta={`${stats.requestedAppointments} requested · ${stats.confirmedAppointments} confirmed`} tone="green" />
-        <MetricCard label="Marketing contacts" value={String(stats.marketingContacts)} delta="From appointment patients" tone="teal" />
-        <MetricCard label="Knowledge docs" value={String(stats.knowledge)} delta="Approved sources for answers" tone="blue" />
-      </section>
+      <section className="instack-agents-section">
+        <header className="instack-section-header">
+          <h2>Your receptionists</h2>
+          <p>Tap any receptionist to manage it.</p>
+        </header>
 
-      <section className="content-grid two-one dashboard-analytics-grid">
-        <Panel title="7-day activity trend" subtitle="Chats and appointment requests" icon={Activity}>
-          <DashboardLineChart data={trend} />
-        </Panel>
-        <Panel title="Sidebar page data" subtitle="Live counts from each workspace area" icon={LayoutDashboard}>
-          <DashboardAreaList activeClinicId={activeClinicId} stats={stats} />
-        </Panel>
-      </section>
+        <div className="instack-agents-grid">
+          {receptionists.map((item) => {
+            const initials = (item.name || "AI").split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "AI";
+            return (
+              <article className="instack-agent-card" key={item.receptionistId}>
+                <button
+                  type="button"
+                  className="instack-agent-open"
+                  aria-label={`Open ${item.name}`}
+                  onClick={() => openReceptionistSetup(item.receptionistId)}
+                >
+                  <ArrowRight size={14} />
+                </button>
+                <div className="instack-agent-head">
+                  <span className="instack-agent-avatar">{initials}</span>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span className="instack-agent-status"><span className="status-dot status-dot-mini" /> Active</span>
+                  </div>
+                </div>
+                <p className="instack-agent-description">
+                  An AI chat receptionist ready to answer patient questions and capture booking requests for your clinic.
+                </p>
+                <div className="instack-agent-actions">
+                  <button type="button" className="instack-agent-button" onClick={() => openReceptionistSetup(item.receptionistId)}>
+                    <Settings2 size={14} />
+                    <span>Setup</span>
+                  </button>
+                  <button type="button" className="instack-agent-button" onClick={() => openChats(item.receptionistId)}>
+                    <BarChart3 size={14} />
+                    <span>Chats</span>
+                  </button>
+                </div>
+              </article>
+            );
+          })}
 
-      <section className="content-grid two-col dashboard-analytics-grid">
-        <Panel title="Appointments pipeline" subtitle="Request status overview" icon={CalendarCheck}>
-          <DashboardBars items={[
-            { label: "Requested", value: stats.requestedAppointments, tone: "blue" },
-            { label: "Confirmed", value: stats.confirmedAppointments, tone: "green" },
-            { label: "Total", value: stats.appointments, tone: "teal" },
-          ]} />
-        </Panel>
-        <Panel title="Growth opportunities" subtitle="Where staff can act next" icon={Sparkles}>
-          <DashboardActionCards activeClinicId={activeClinicId} stats={stats} />
-        </Panel>
+          <button type="button" className="instack-agent-card instack-agent-card-empty" onClick={createReceptionistFlow}>
+            <div className="instack-empty-plus"><Plus size={22} /></div>
+            <strong>New receptionist</strong>
+            <span>Spin up another chat receptionist.</span>
+          </button>
+        </div>
       </section>
-    </>
+    </div>
   );
 }
 

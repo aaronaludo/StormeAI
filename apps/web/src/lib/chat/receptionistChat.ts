@@ -120,7 +120,7 @@ async function retrieveKnowledge(clinicId: string, message: string): Promise<Rag
   let query = supabase.from("knowledge_documents").select("title,content").eq("clinic_id", clinicId).in("status", ["indexed", "published", "approved"]).limit(4);
   if (orFilter) query = query.or(orFilter);
   const { data } = await query;
-  return (data || []).filter((item) => item.content).map((item) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
+  return (data || []).filter((item: { title?: string | null; content?: string | null }) => item.content).map((item: { title?: string | null; content?: string | null }) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
 }
 
 function renderKnowledge(citations: RagContext) {

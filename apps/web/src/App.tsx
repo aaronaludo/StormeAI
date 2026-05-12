@@ -1493,7 +1493,7 @@ function ChatsPage() {
       return;
     }
 
-    const rows = (data || []).map((row) => ({
+    const rows = (data || []).map((row: any) => ({
       id: row.id,
       status: row.status,
       channel: row.channel,
@@ -1526,7 +1526,7 @@ function ChatsPage() {
       return;
     }
 
-    setMessages((data || []).map((row) => ({ id: row.id, sender: row.sender, body: row.body, createdAt: row.created_at })));
+    setMessages((data || []).map((row: any) => ({ id: row.id, sender: row.sender, body: row.body, createdAt: row.created_at })));
   }
 
   useEffect(() => {
@@ -1667,7 +1667,7 @@ function KnowledgeBasePage() {
       return;
     }
 
-    setDocuments((data || []).map((row) => ({
+    setDocuments((data || []).map((row: any) => ({
       id: row.id,
       title: row.title,
       sourceType: row.source_type,

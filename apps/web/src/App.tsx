@@ -780,7 +780,7 @@ function TestChatSidebar({ open, onClose }: { open: boolean; onClose: () => void
   const selectedReceptionistName = selectedReceptionist?.name || "Meng";
 
   return (
-    <aside className={`test-chat-sidebar ${open ? "open" : ""}`} aria-hidden={!open}>
+    <aside className={`test-chat-sidebar ${open ? "open d-flex" : "d-none"}`} aria-hidden={!open}>
       <header className="test-chat-header">
         <div className="test-chat-eyebrow">
           <span className="test-chat-eyebrow-dot" /> Test chat

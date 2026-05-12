@@ -1010,7 +1010,6 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.05em; }
 /* Regular laptop/screen compatibility pass */
 .main-panel {
   width: 100%;
-  max-width: 1480px;
   margin: 0 auto;
 }
 @media (max-width: 1440px) {
@@ -7832,7 +7831,7 @@ body.sidebar-resizing {
 
 .instack-agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 540px));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   justify-content: start;
 }
@@ -8003,7 +8002,6 @@ body.sidebar-resizing {
   align-self: start;
   height: 100vh;
   width: 360px;
-  display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 18px 18px 16px;
@@ -8174,4 +8172,12 @@ body.sidebar-resizing {
 @media (max-width: 720px) {
   .test-chat-sidebar { width: 100vw; border-left: 0; }
   .test-chat-footer-hint { display: none; }
+}
+
+.d-flex{
+  display: flex !important;
+}
+
+.d-none{
+  display: none !important;
 }

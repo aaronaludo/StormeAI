@@ -31,7 +31,6 @@ a { color: inherit; }
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
   padding: 28px 22px;
   border-right: 1px solid rgba(226, 232, 240, 0.9);
   background: rgba(255, 255, 255, 0.82);

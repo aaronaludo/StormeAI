@@ -30,9 +30,9 @@ function stormeAiLocalChatPlugin(env: Record<string, string>): Plugin {
 
         try {
           const body = await readJsonBody(request);
-          const result = await runLocalReceptionistTurn(env, {
-            clinicId: String(body.clinicId || body.clinic_id || ""),
-            receptionistId: body.receptionistId || body.receptionist_id || undefined,
+          const result = await runLocalAgentTurn(env, {
+            organizationId: String(body.organizationId || body.organization_id || ""),
+            agentId: body.agentId || body.agent_id || undefined,
             sessionId: body.sessionId || body.session_id || undefined,
             message: String(body.message || body.patientMessage || ""),
           });
@@ -59,7 +59,7 @@ function stormeAiLocalChatPlugin(env: Record<string, string>): Plugin {
         try {
           const body = await readJsonBody(request);
           const result = await createLocalAppointmentRequest(env, {
-            clinicId: String(body.clinicId || body.clinic_id || ""),
+            organizationId: String(body.organizationId || body.organization_id || ""),
             sessionId: body.sessionId || body.session_id || undefined,
             patientName: String(body.patientName || ""),
             contact: String(body.contact || ""),
@@ -77,15 +77,15 @@ function stormeAiLocalChatPlugin(env: Record<string, string>): Plugin {
 }
 
 type LocalChatInput = {
-  clinicId: string;
-  receptionistId?: string;
+  organizationId: string;
+  agentId?: string;
   sessionId?: string;
   message: string;
 };
 
-type ReceptionistContext = {
+type AgentContext = {
   id: string;
-  clinic_id: string;
+  organization_id: string;
   name: string;
   tone?: string;
   language_style?: string;
@@ -94,32 +94,32 @@ type ReceptionistContext = {
   default_model?: string;
   use_approved_knowledge_only?: boolean;
   settings?: Record<string, unknown> | null;
-  clinics?: { name?: string; clinic_type?: string; business_hours?: unknown } | { name?: string; clinic_type?: string; business_hours?: unknown }[];
+  organizations?: { name?: string; organization_type?: string; business_hours?: unknown } | { name?: string; organization_type?: string; business_hours?: unknown }[];
 };
 
 type KnowledgeItem = { title?: string; content: string };
 const localChatMessages = new Map<string, string[]>();
 
-async function runLocalReceptionistTurn(env: Record<string, string>, input: LocalChatInput) {
-  if (!input.clinicId) throw new Error("clinicId is required.");
+async function runLocalAgentTurn(env: Record<string, string>, input: LocalChatInput) {
+  if (!input.organizationId) throw new Error("organizationId is required.");
   const patientMessage = input.message.trim();
   if (!patientMessage) throw new Error("message is required.");
 
-  const context = await loadReceptionist(env, input.clinicId, input.receptionistId);
-  const citations = await retrieveKnowledge(env, input.clinicId, patientMessage);
+  const context = await loadAgent(env, input.organizationId, input.agentId);
+  const citations = await retrieveKnowledge(env, input.organizationId, patientMessage);
   const sessionId = input.sessionId || `local-${crypto.randomUUID()}`;
   const history = [...(localChatMessages.get(sessionId) || []), patientMessage];
   localChatMessages.set(sessionId, history.slice(-12));
 
-  const deterministicReply = answerCommonReceptionistQuestion(patientMessage, context) || answerSimpleMath(patientMessage);
+  const deterministicReply = answerCommonAgentQuestion(patientMessage, context) || answerSimpleMath(patientMessage);
   if (deterministicReply) {
-    const bookingUrl = `/book/${input.clinicId}?${new URLSearchParams({ sessionId, ...(input.receptionistId ? { receptionistId: input.receptionistId } : {}) }).toString()}`;
+    const bookingUrl = `/book/${input.organizationId}?${new URLSearchParams({ sessionId, ...(input.agentId ? { agentId: input.agentId } : {}) }).toString()}`;
     return {
       sessionId,
       reply: wantsBooking(patientMessage) ? "I can help request an appointment. Please tap Redirect to enter the details clearly." : deterministicReply,
       mode: "rule",
       citations,
-      receptionistName: context.name,
+      agentName: context.name,
       bookingUrl: wantsBooking(patientMessage) ? bookingUrl : undefined,
     };
   }
@@ -130,27 +130,27 @@ async function runLocalReceptionistTurn(env: Record<string, string>, input: Loca
     temperature: 0.2,
   });
 
-  return { sessionId, reply: completion.content.trim() || safeFallback(patientMessage, citations), mode: "ai", citations, receptionistName: context.name, provider: "ollama", model: completion.model };
+  return { sessionId, reply: completion.content.trim() || safeFallback(patientMessage, citations), mode: "ai", citations, agentName: context.name, provider: "ollama", model: completion.model };
 }
 
-async function loadReceptionist(env: Record<string, string>, clinicId: string, receptionistId?: string): Promise<ReceptionistContext> {
+async function loadAgent(env: Record<string, string>, organizationId: string, agentId?: string): Promise<AgentContext> {
   const params = new URLSearchParams();
-  params.set("select", "id,clinic_id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,settings,clinics(name,clinic_type,business_hours)");
-  params.set("clinic_id", `eq.${clinicId}`);
-  if (receptionistId) params.set("id", `eq.${receptionistId}`);
+  params.set("select", "id,organization_id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,settings,organizations(name,organization_type,business_hours)");
+  params.set("organization_id", `eq.${organizationId}`);
+  if (agentId) params.set("id", `eq.${agentId}`);
   params.set("order", "updated_at.desc");
   params.set("limit", "1");
 
-  const rows = await supabaseRest<ReceptionistContext[]>(env, `/rest/v1/ai_receptionists?${params.toString()}`);
-  if (!rows.length) throw new Error("No AI receptionist found for this clinic.");
+  const rows = await supabaseRest<AgentContext[]>(env, `/rest/v1/agents?${params.toString()}`);
+  if (!rows.length) throw new Error("No AI agent found for this organization.");
   return rows[0];
 }
 
-async function retrieveKnowledge(env: Record<string, string>, clinicId: string, message: string): Promise<KnowledgeItem[]> {
+async function retrieveKnowledge(env: Record<string, string>, organizationId: string, message: string): Promise<KnowledgeItem[]> {
   const terms = message.toLowerCase().match(/[a-z0-9]+/g)?.filter((term) => term.length >= 4).slice(0, 5) || [];
   const params = new URLSearchParams();
   params.set("select", "title,content");
-  params.set("clinic_id", `eq.${clinicId}`);
+  params.set("organization_id", `eq.${organizationId}`);
   params.set("status", "in.(indexed,published,approved)");
   params.set("limit", "4");
   if (terms.length) params.set("or", `(${terms.flatMap((term) => [`title.ilike.%${term}%`, `content.ilike.%${term}%`]).join(",")})`);
@@ -189,11 +189,11 @@ async function supabaseWrite<T>(env: Record<string, string>, path: string, paylo
 }
 
 
-async function createLocalAppointmentRequest(env: Record<string, string>, input: { clinicId: string; sessionId?: string; patientName: string; contact: string; service: string; requestedAt: string; note?: string }) {
-  if (!input.clinicId) throw new Error("clinicId is required.");
+async function createLocalAppointmentRequest(env: Record<string, string>, input: { organizationId: string; sessionId?: string; patientName: string; contact: string; service: string; requestedAt: string; note?: string }) {
+  if (!input.organizationId) throw new Error("organizationId is required.");
   if (!input.patientName.trim() || !input.contact.trim() || !input.service.trim() || !input.requestedAt.trim()) throw new Error("Patient name, contact, service, and preferred date/time are required.");
   const [patient] = await supabaseWrite<Array<{ id: string }>>(env, "/rest/v1/patients", {
-    clinic_id: input.clinicId,
+    organization_id: input.organizationId,
     full_name: input.patientName.trim(),
     email: input.contact.includes("@") ? input.contact.trim() : null,
     phone: input.contact.includes("@") ? null : input.contact.trim(),
@@ -201,7 +201,7 @@ async function createLocalAppointmentRequest(env: Record<string, string>, input:
   });
   const note = [`Service: ${input.service.trim()}`, `Preferred time: ${input.requestedAt.trim()}`, `Contact: ${input.contact.trim()}`, input.sessionId ? `Chat session: ${input.sessionId}` : "", input.note?.trim() ? `Note: ${input.note.trim()}` : ""].filter(Boolean).join("\n");
   const [appointment] = await supabaseWrite<Array<{ id: string }>>(env, "/rest/v1/appointments", {
-    clinic_id: input.clinicId,
+    organization_id: input.organizationId,
     patient_id: patient.id,
     status: "requested",
     requested_start_at: new Date(input.requestedAt).toISOString(),
@@ -211,11 +211,11 @@ async function createLocalAppointmentRequest(env: Record<string, string>, input:
   return { appointmentId: appointment.id, status: "requested" };
 }
 
-async function maybeCreateAppointmentRequest(env: Record<string, string>, clinicId: string, sessionId: string, history: string[], latestMessage: string) {
+async function maybeCreateAppointmentRequest(env: Record<string, string>, organizationId: string, sessionId: string, history: string[], latestMessage: string) {
   if (!wantsBooking(latestMessage) && !history.some(wantsBooking)) return null;
   const existingParams = new URLSearchParams();
   existingParams.set("select", "id");
-  existingParams.set("clinic_id", `eq.${clinicId}`);
+  existingParams.set("organization_id", `eq.${organizationId}`);
   existingParams.set("source", "eq.chat");
   existingParams.set("patient_note", `ilike.%Chat session: ${sessionId}%`);
   existingParams.set("limit", "1");
@@ -226,7 +226,7 @@ async function maybeCreateAppointmentRequest(env: Record<string, string>, clinic
   if (!details.patientName || !details.contact || !details.service || !details.preferredTime) return null;
 
   const [patient] = await supabaseWrite<Array<{ id: string }>>(env, "/rest/v1/patients", {
-    clinic_id: clinicId,
+    organization_id: organizationId,
     full_name: details.patientName,
     email: details.contact.includes("@") ? details.contact : null,
     phone: details.contact.includes("@") ? null : details.contact,
@@ -242,7 +242,7 @@ async function maybeCreateAppointmentRequest(env: Record<string, string>, clinic
   ].join("\n");
 
   const [appointment] = await supabaseWrite<Array<{ id: string }>>(env, "/rest/v1/appointments", {
-    clinic_id: clinicId,
+    organization_id: organizationId,
     patient_id: patient.id,
     status: "requested",
     requested_start_at: details.requestedStartAt,
@@ -326,45 +326,45 @@ async function ollamaChat(env: Record<string, string>, request: { model: string;
   return { model: request.model, content: raw?.message?.content || "" };
 }
 
-function buildPrompt(context: ReceptionistContext, citations: KnowledgeItem[]) {
-  const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
+function buildPrompt(context: AgentContext, citations: KnowledgeItem[]) {
+  const organization = Array.isArray(context.organizations) ? context.organizations[0] : context.organizations;
   const settings = context.settings || {};
-  const knowledge = citations.length ? citations.map((item, index) => `[${index + 1}] ${item.title || "Clinic source"}: ${item.content}`).join("\n") : "No matching approved clinic knowledge found.";
+  const knowledge = citations.length ? citations.map((item, index) => `[${index + 1}] ${item.title || "Organization source"}: ${item.content}`).join("\n") : "No matching approved organization knowledge found.";
   return [
-    `You are ${context.name || "Meng"}, StormeAI chat-only receptionist for ${clinic?.name || "this clinic"}.`,
-    `Clinic type: ${clinic?.clinic_type || "clinic"}.`,
+    `You are ${context.name || "Meng"}, StormeAI chat-only agent for ${organization?.name || "this organization"}.`,
+    `Organization type: ${organization?.organization_type || "organization"}.`,
     `Tone: ${context.tone || "warm, professional, concise"}.`,
     `Language: ${context.language_style || "English, with Taglish when appropriate"}. Reply in English unless the patient writes in Tagalog/Taglish. Do not mix in other languages or scripts.`,
-    settings.businessHours ? `Clinic hours: ${settings.businessHours}.` : undefined,
+    settings.businessHours ? `Organization hours: ${settings.businessHours}.` : undefined,
     settings.bookingInstructions ? `Booking instructions: ${settings.bookingInstructions}` : undefined,
     settings.handoffInstructions ? `Handoff instructions: ${settings.handoffInstructions}` : undefined,
-    context.use_approved_knowledge_only ? "Answer clinic-specific questions only from approved clinic knowledge. You may still answer harmless general non-medical questions, greetings, and simple math directly." : "Prefer approved clinic knowledge and be clear when unsure.",
+    context.use_approved_knowledge_only ? "Answer organization-specific questions only from approved organization knowledge. You may still answer harmless general non-medical questions, greetings, and simple math directly." : "Prefer approved organization knowledge and be clear when unsure.",
     "Never diagnose, prescribe, interpret symptoms, recommend treatments, or present as a doctor.",
     "For urgent symptoms, tell the patient to seek emergency care immediately and offer staff handoff.",
-    `Approved clinic knowledge:\n${knowledge}`,
-    context.base_system_prompt ? `Clinic custom prompt: ${context.base_system_prompt}` : undefined,
+    `Approved organization knowledge:\n${knowledge}`,
+    context.base_system_prompt ? `Organization custom prompt: ${context.base_system_prompt}` : undefined,
   ].filter(Boolean).join("\n");
 }
 
-function answerCommonReceptionistQuestion(message: string, context: ReceptionistContext) {
+function answerCommonAgentQuestion(message: string, context: AgentContext) {
   const lower = message.toLowerCase();
-  const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
+  const organization = Array.isArray(context.organizations) ? context.organizations[0] : context.organizations;
   const settings = context.settings || {};
-  const receptionistName = context.name || "Meng";
-  const clinicName = clinic?.name || "the clinic";
+  const agentName = context.name || "Meng";
+  const organizationName = organization?.name || "the organization";
 
   if (["what's your name", "what is your name", "who are you", "your name"].some((term) => lower.includes(term))) {
-    return `I’m ${receptionistName}, the StormeAI chat receptionist for ${clinicName}. I can help with clinic questions, appointment requests, and staff handoff.`;
+    return `I’m ${agentName}, the StormeAI chat agent for ${organizationName}. I can help with organization questions, appointment requests, and staff handoff.`;
   }
-  if (["clinic hours", "business hours", "open", "closing", "closed", "schedule"].some((term) => lower.includes(term))) {
-    const hours = String(settings.businessHours || formatBusinessHours(clinic?.business_hours));
+  if (["organization hours", "business hours", "open", "closing", "closed", "schedule"].some((term) => lower.includes(term))) {
+    const hours = String(settings.businessHours || formatBusinessHours(organization?.business_hours));
     return hours
-      ? `${clinicName} hours: ${hours}. If you want, I can also collect your preferred appointment date and time for staff confirmation.`
-      : `I don’t have confirmed clinic hours saved yet for ${clinicName}. I can collect your question and route it to clinic staff, or help request an appointment for staff confirmation.`;
+      ? `${organizationName} hours: ${hours}. If you want, I can also collect your preferred appointment date and time for staff confirmation.`
+      : `I don’t have confirmed organization hours saved yet for ${organizationName}. I can collect your question and route it to organization staff, or help request an appointment for staff confirmation.`;
   }
-  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
+  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Organization staff will confirm availability.";
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
-  if (wantsHandoff(message)) return "Sure — I can flag this for clinic staff. Please share your name, contact number or email, and what you need help with.";
+  if (wantsHandoff(message)) return "Sure — I can flag this for organization staff. Please share your name, contact number or email, and what you need help with.";
   return null;
 }
 
@@ -383,9 +383,9 @@ function answerSimpleMath(message: string) {
 
 function safeFallback(message: string, citations: KnowledgeItem[]) {
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
-  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Clinic staff will confirm availability.";
-  if (citations.length) return `I found clinic-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
-  return "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
+  if (wantsBooking(message)) return "I can help request an appointment. Please use the booking form so you can enter the details clearly. Organization staff will confirm availability.";
+  if (citations.length) return `I found organization-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
+  return "I can’t confirm that from approved organization knowledge yet. I can collect your question and route it to organization staff for follow-up.";
 }
 
 function formatBusinessHours(value: unknown) {
@@ -402,7 +402,7 @@ function formatBusinessHours(value: unknown) {
 
 function isEmergency(message: string) { return ["chest pain", "bleeding", "can't breathe", "cant breathe", "emergency", "urgent", "fainted", "severe pain"].some((term) => message.toLowerCase().includes(term)); }
 function wantsBooking(message: string) { return ["appointment", "book", "schedule", "reschedule", "cancel", "available", "slot"].some((term) => message.toLowerCase().includes(term)); }
-function wantsHandoff(message: string) { return ["staff", "human", "receptionist", "call me", "contact me", "talk to someone"].some((term) => message.toLowerCase().includes(term)); }
+function wantsHandoff(message: string) { return ["staff", "human", "agent", "call me", "contact me", "talk to someone"].some((term) => message.toLowerCase().includes(term)); }
 
 function setCors(response: any) {
   response.setHeader("Access-Control-Allow-Origin", "*");

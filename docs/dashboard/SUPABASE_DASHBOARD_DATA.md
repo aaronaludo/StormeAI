@@ -4,14 +4,14 @@ ST-010 adds a dashboard data hook.
 
 ## Hook
 
-`useDashboardData(clinicId)`
+`useDashboardData(organizationId)`
 
 It loads:
 
-- clinic name
+- organization name
 - chat count
 - appointment request sample
 - human handoff count
 - knowledge gap count
 
-If Supabase or clinicId is unavailable, the hook safely falls back to demo data.
+If Supabase or organizationId is unavailable, the hook safely falls back to demo data.

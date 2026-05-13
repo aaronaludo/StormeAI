@@ -3,8 +3,8 @@
 
 grant usage on schema public to service_role;
 
-grant select on table public.clinics to service_role;
-grant select on table public.ai_receptionists to service_role;
+grant select on table public.organizations to service_role;
+grant select on table public.agents to service_role;
 grant select on table public.knowledge_documents to service_role;
 
 grant select, insert, update on table public.chat_sessions to service_role;

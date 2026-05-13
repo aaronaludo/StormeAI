@@ -12,20 +12,20 @@ type AuthPageProps = {
 const authCopy: Record<AuthMode, { eyebrow: string; title: string; subtitle: string; cta: string }> = {
   "sign-in": {
     eyebrow: "Welcome back",
-    title: "Sign in to your clinic dashboard",
-    subtitle: "Manage patient chats, appointments, clinic knowledge, and receptionist settings in one secure workspace.",
+    title: "Sign in to your organization dashboard",
+    subtitle: "Manage patient chats, appointments, organization knowledge, and agent settings in one secure workspace.",
     cta: "Sign in",
   },
   "sign-up": {
     eyebrow: "Start your workspace",
     title: "Create your StormeAI account",
-    subtitle: "Set up a chat-only AI receptionist for your clinic — safe answers, bookings, and human handoffs.",
+    subtitle: "Set up a chat-only AI agent for your organization — safe answers, bookings, and human handoffs.",
     cta: "Create account",
   },
   "forgot-password": {
     eyebrow: "Account recovery",
     title: "Reset your password",
-    subtitle: "Enter your clinic account email and we’ll send a secure password reset link.",
+    subtitle: "Enter your organization account email and we’ll send a secure password reset link.",
     cta: "Send reset link",
   },
   "update-password": {
@@ -105,8 +105,8 @@ export function AuthPage({ mode }: AuthPageProps) {
           StormeAI
         </Link>
         <div>
-          <span className="badge teal">Chat-only AI receptionist</span>
-          <h1>Give every clinic a safer, faster front desk.</h1>
+          <span className="badge teal">Chat-only AI agent</span>
+          <h1>Give every organization a safer, faster front desk.</h1>
           <p>Inspired by modern two-column SaaS auth pages: clear value on one side, focused secure form on the other.</p>
         </div>
         <div className="auth-proof-list">
@@ -168,7 +168,7 @@ export function AuthPage({ mode }: AuthPageProps) {
 }
 
 function getHelperLinks(mode: AuthMode) {
-  if (mode === "sign-in") return [{ href: "/auth/sign-up", label: "New clinic? Create an account" }];
+  if (mode === "sign-in") return [{ href: "/auth/sign-up", label: "New organization? Create an account" }];
   if (mode === "sign-up") return [{ href: "/auth/sign-in", label: "Already have an account? Sign in" }];
   if (mode === "forgot-password") return [{ href: "/auth/sign-in", label: "Back to sign in" }];
   return [{ href: "/auth/sign-in", label: "Back to sign in" }];

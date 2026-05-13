@@ -1,11 +1,11 @@
 # StormeAI Database Schema
 
-This schema is for the chat-only AI receptionist MVP.
+This schema is for the chat-only AI agent MVP.
 
 ## Core goals
 
-- Multi-tenant clinics via `clinic_id`
-- Supabase Auth users connected through `clinic_members`
+- Multi-tenant organizations via `organization_id`
+- Supabase Auth users connected through `organization_members`
 - RLS enabled on all tenant data tables
 - Appointment-first data model
 - RAG-ready knowledge tables using Supabase `pgvector`
@@ -14,13 +14,13 @@ This schema is for the chat-only AI receptionist MVP.
 
 ## Main tables
 
-- `clinics`
-- `clinic_members`
+- `organizations`
+- `organization_members`
 - `patients`
 - `services`
 - `providers`
 - `appointments`
-- `ai_receptionists`
+- `agents`
 - `chat_sessions`
 - `chat_messages`
 - `knowledge_documents`
@@ -31,13 +31,13 @@ This schema is for the chat-only AI receptionist MVP.
 
 ## RLS model
 
-Authenticated users can access tenant data only when they are present in `clinic_members` for that clinic.
+Authenticated users can access tenant data only when they are present in `organization_members` for that organization.
 
-Admin-only operations use `is_clinic_admin(clinic_id)`.
+Admin-only operations use `is_organization_admin(organization_id)`.
 
 ## RAG search
 
-`match_knowledge_chunks(...)` performs tenant-scoped vector search and only returns results when the authenticated user is a clinic member.
+`match_knowledge_chunks(...)` performs tenant-scoped vector search and only returns results when the authenticated user is an organization member.
 
 ## Notes
 

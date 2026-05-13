@@ -37,14 +37,14 @@ import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Area, Bar as RechartsBar, BarChart, CartesianGrid, ComposedChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PatientChatWidget } from "./components/chat/PatientChatWidget";
-import { ReceptionistSettingsForm } from "./components/settings/ReceptionistSettingsForm";
+import { AgentSettingsForm } from "./components/settings/AgentSettingsForm";
 import { AuthPage } from "./pages/AuthPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
-import { ClinicOnboardingPage } from "./pages/ClinicOnboardingPage";
+import { OrganizationOnboardingPage } from "./pages/OrganizationOnboardingPage";
 import { supabase } from "./lib/supabase";
-import { buildSettingsPromptPreview, createReceptionist, defaultReceptionistSettings, listReceptionists, loadReceptionistSettings, saveReceptionistSettings, type ReceptionistOption, type ReceptionistSettingsRecord } from "./lib/ai/receptionistSettings";
-import { listClinicWorkspaces, type ClinicWorkspaceOption } from "./lib/clinicWorkspaces";
-import { getWorkspaceSelection, persistWorkspaceSelection, setSelectedClinic, setSelectedReceptionist, subscribeWorkspaceSelection } from "./lib/workspaceSelection";
+import { buildSettingsPromptPreview, createAgent, defaultAgentSettings, listAgents, loadAgentSettings, saveAgentSettings, type AgentOption, type AgentSettingsRecord } from "./lib/ai/agentSettings";
+import { getUserOrganization, type OrganizationOption } from "./lib/organizationWorkspaces";
+import { getWorkspaceSelection, persistWorkspaceSelection, setSelectedOrganization, setSelectedAgent, subscribeWorkspaceSelection } from "./lib/workspaceSelection";
 
 type NavItem = {
   label: string;
@@ -74,7 +74,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Build & Deploy",
     items: [
-      { label: "AI Receptionist", path: "ai-receptionist", icon: RobotEmojiIcon },
+      { label: "AI Agent", path: "ai-agent", icon: RobotEmojiIcon },
       { label: "Knowledge Base", path: "knowledge-base", icon: DatabaseZap },
       { label: "Integrations", path: "integrations", icon: Globe2 },
     ],
@@ -90,7 +90,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Organization",
     items: [
-      { label: "Clinics", path: "clinics", icon: ClipboardList },
+      { label: "Organizations", path: "organizations", icon: ClipboardList },
       { label: "Account Settings", path: "account", icon: Settings2 },
     ],
   },
@@ -106,10 +106,10 @@ const metrics: Metric[] = [
 ];
 
 const knowledgeSources = [
-  { title: "Clinic services and prices", meta: "18 chunks indexed", status: "Indexed" },
+  { title: "Organization services and prices", meta: "18 chunks indexed", status: "Indexed" },
   { title: "Pre-visit preparation guide", meta: "PDF source", status: "Indexed" },
   { title: "Doctor profiles", meta: "4 providers", status: "Indexed" },
-  { title: "Cancellation policy", meta: "Clinic rule", status: "Indexed" },
+  { title: "Cancellation policy", meta: "Organization rule", status: "Indexed" },
 ];
 
 const appointmentRows = [
@@ -167,7 +167,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/book/:clinicId" element={<BookingRequestPage />} />
+        <Route path="/book/:organizationId" element={<BookingRequestPage />} />
 
         <Route element={<PublicRoute />}>
           <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
@@ -180,27 +180,27 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardRedirect />} />
-            <Route path="/chats" element={<LegacyClinicPageRedirect page="chats" />} />
-            <Route path="/clinics" element={<ClinicOnboardingPage />} />
-            <Route path="/ai-receptionist" element={<LegacyClinicPageRedirect page="ai-receptionist" />} />
-            <Route path="/knowledge-base" element={<LegacyClinicPageRedirect page="knowledge-base" />} />
-            <Route path="/appointments" element={<LegacyClinicPageRedirect page="appointments" />} />
-            <Route path="/marketing" element={<LegacyClinicPageRedirect page="marketing" />} />
-            <Route path="/integrations" element={<LegacyClinicPageRedirect page="integrations" />} />
-            <Route path="/account" element={<LegacyClinicPageRedirect page="account" />} />
-            <Route path="/dashboard/:clinicId" element={<DashboardPage />} />
-            <Route path="/chats/:clinicId" element={<ChatsPage />} />
-            <Route path="/clinics/:clinicId" element={<ClinicOnboardingPage />} />
-            <Route path="/ai-receptionist/:clinicId" element={<ReceptionistPage />} />
-            <Route path="/knowledge-base/:clinicId" element={<KnowledgeBasePage />} />
-            <Route path="/appointments/:clinicId" element={<AppointmentsPage />} />
-            <Route path="/marketing/:clinicId" element={<MarketingPage />} />
-            <Route path="/integrations/:clinicId" element={<IntegrationsPage />} />
-            <Route path="/account/:clinicId" element={<AccountSettingsPage />} />
+            <Route path="/chats" element={<LegacyOrganizationPageRedirect page="chats" />} />
+            <Route path="/organizations" element={<OrganizationOnboardingPage />} />
+            <Route path="/ai-agent" element={<LegacyOrganizationPageRedirect page="ai-agent" />} />
+            <Route path="/knowledge-base" element={<LegacyOrganizationPageRedirect page="knowledge-base" />} />
+            <Route path="/appointments" element={<LegacyOrganizationPageRedirect page="appointments" />} />
+            <Route path="/marketing" element={<LegacyOrganizationPageRedirect page="marketing" />} />
+            <Route path="/integrations" element={<LegacyOrganizationPageRedirect page="integrations" />} />
+            <Route path="/account" element={<LegacyOrganizationPageRedirect page="account" />} />
+            <Route path="/dashboard/:agentId" element={<DashboardPage />} />
+            <Route path="/chats/:agentId" element={<ChatsPage />} />
+            <Route path="/organizations/:agentId" element={<OrganizationOnboardingPage />} />
+            <Route path="/ai-agent/:agentId" element={<AgentPage />} />
+            <Route path="/knowledge-base/:agentId" element={<KnowledgeBasePage />} />
+            <Route path="/appointments/:agentId" element={<AppointmentsPage />} />
+            <Route path="/marketing/:agentId" element={<MarketingPage />} />
+            <Route path="/integrations/:agentId" element={<IntegrationsPage />} />
+            <Route path="/account/:agentId" element={<AccountSettingsPage />} />
           </Route>
         </Route>
 
-        <Route path="/onboarding" element={<Navigate to="/clinics" replace />} />
+        <Route path="/onboarding" element={<Navigate to="/organizations" replace />} />
         <Route path="*" element={<DashboardRedirect />} />
       </Routes>
     </BrowserRouter>
@@ -220,17 +220,17 @@ function LandingPage() {
   const closeLandingMenu = () => setIsLandingMenuOpen(false);
 
   const capabilities = [
-    { title: "Responds to patient inquiries", text: "Answers through Messenger, SMS, and the website widget using information your clinic has approved.", icon: MessageSquareText },
+    { title: "Responds to patient inquiries", text: "Answers through Messenger, SMS, and the website widget using information your organization has approved.", icon: MessageSquareText },
     { title: "Captures booking requests", text: "Collects the service, preferred schedule, contact details, and notes in a structured booking flow.", icon: CalendarCheck },
     { title: "Keeps patients updated", text: "Sends confirmations, reminders, and follow-up messages so patients know the next step.", icon: Smartphone },
-    { title: "Uses verified clinic knowledge", text: "References your services, prices, FAQs, preparation notes, and policies for consistent replies.", icon: BookOpen },
-    { title: "Guides priority conversations", text: "Identifies urgent, sensitive, or unclear inquiries and applies your clinic’s approved next-step rules.", icon: GitBranch },
+    { title: "Uses verified organization knowledge", text: "References your services, prices, FAQs, preparation notes, and policies for consistent replies.", icon: BookOpen },
+    { title: "Guides priority conversations", text: "Identifies urgent, sensitive, or unclear inquiries and applies your organization’s approved next-step rules.", icon: GitBranch },
     { title: "Shows the full chat history", text: "Keeps inquiries, booking requests, knowledge gaps, and conversation outcomes organized in one dashboard.", icon: BarChart3 },
   ];
 
   const setupSteps = [
     { step: "Step 01", title: "Connect a channel", text: "Use Messenger, phone/SMS, or the StormeAI web widget.", icon: MessageSquareText },
-    { step: "Step 02", title: "Drop in your knowledge", text: "Upload services, pricing, policies, FAQs, and clinic rules.", icon: BookOpen },
+    { step: "Step 02", title: "Drop in your knowledge", text: "Upload services, pricing, policies, FAQs, and organization rules.", icon: BookOpen },
     { step: "Step 03", title: "Set the rules", text: "Choose booking, triage, fallback, and priority-intake behavior.", icon: Settings2 },
     { step: "Step 04", title: "Go live and review", text: "Every patient conversation stays searchable with clear booking context and outcomes.", icon: Activity },
   ];
@@ -238,18 +238,18 @@ function LandingPage() {
   const pricingPlans = [
     {
       name: "Launch",
-      eyebrow: "For new clinics",
+      eyebrow: "For new organizations",
       price: "Custom",
-      description: "Start with AI patient chat, approved clinic knowledge, and simple booking request capture.",
+      description: "Start with AI patient chat, approved organization knowledge, and simple booking request capture.",
       cta: "Start Launch",
       highlighted: false,
-      features: ["1 clinic workspace", "Messenger or web widget", "AI receptionist setup", "Booking request flow", "Knowledge base import"],
+      features: ["1 organization workspace", "Messenger or web widget", "AI agent setup", "Booking request flow", "Knowledge base import"],
     },
     {
       name: "Growth",
       eyebrow: "Most popular",
       price: "Custom",
-      description: "A premium automation layer for busy clinics managing conversations across every patient channel.",
+      description: "A premium automation layer for busy organizations managing conversations across every patient channel.",
       cta: "Get Growth pricing",
       highlighted: true,
       features: ["Unlimited patient chats", "Messenger + SMS + widget", "Priority intake workflows", "Conversation analytics", "Follow-up and reminder flows", "Premium onboarding"],
@@ -258,10 +258,10 @@ function LandingPage() {
       name: "Network",
       eyebrow: "Multi-location",
       price: "Custom",
-      description: "Designed for clinic groups that need shared standards, multiple workspaces, and advanced rollout support.",
+      description: "Designed for organization groups that need shared standards, multiple workspaces, and advanced rollout support.",
       cta: "Talk to sales",
       highlighted: false,
-      features: ["Multiple clinic workspaces", "Branch-level knowledge", "Team workflow controls", "Custom integrations", "Dedicated support"],
+      features: ["Multiple organization workspaces", "Branch-level knowledge", "Team workflow controls", "Custom integrations", "Dedicated support"],
     },
   ];
 
@@ -272,17 +272,17 @@ function LandingPage() {
   ];
 
   const faqs = [
-    ["How does AI patient support work?", "StormeAI answers patient questions using the clinic information you approve, then collects structured details for appointment requests and follow-up workflows."],
+    ["How does AI patient support work?", "StormeAI answers patient questions using the organization information you approve, then collects structured details for appointment requests and follow-up workflows."],
     ["Can StormeAI help with appointment booking?", "Yes. It can gather the service, preferred time, patient contact details, and notes so booking requests arrive organized and easy to review."],
-    ["How long does clinic setup take?", "Most clinics can prepare a first workflow quickly once services, prices, policies, clinic hours, and common FAQs are ready."],
-    ["Does it connect with Facebook Messenger?", "Yes. StormeAI is designed for Messenger inquiries so clinics can respond quickly where many patients already message."],
-    ["Is SMS support included?", "Yes. SMS-style patient messaging can support confirmations, reminders, and follow-up conversations depending on your clinic workflow."],
-    ["Will patients know they are talking to an AI receptionist?", "StormeAI can introduce itself clearly using your clinic receptionist name and keeps responses aligned with your approved tone and policies."],
-    ["How is patient privacy handled?", "Clinic information and conversation workflows stay inside your StormeAI workspace, with privacy-first setup practices and controlled knowledge sources."],
-    ["Can it answer questions outside clinic hours?", "Yes. StormeAI can provide 24/7 patient chat coverage for common questions, booking requests, and next-step guidance."],
+    ["How long does organization setup take?", "Most organizations can prepare a first workflow quickly once services, prices, policies, organization hours, and common FAQs are ready."],
+    ["Does it connect with Facebook Messenger?", "Yes. StormeAI is designed for Messenger inquiries so organizations can respond quickly where many patients already message."],
+    ["Is SMS support included?", "Yes. SMS-style patient messaging can support confirmations, reminders, and follow-up conversations depending on your organization workflow."],
+    ["Will patients know they are talking to an AI agent?", "StormeAI can introduce itself clearly using your organization agent name and keeps responses aligned with your approved tone and policies."],
+    ["How is patient privacy handled?", "Organization information and conversation workflows stay inside your StormeAI workspace, with privacy-first setup practices and controlled knowledge sources."],
+    ["Can it answer questions outside organization hours?", "Yes. StormeAI can provide 24/7 patient chat coverage for common questions, booking requests, and next-step guidance."],
     ["How fast are responses?", "Most routine inquiries can be answered instantly, helping patients get clear next steps without waiting for office hours."],
-    ["Can it support multiple languages?", "StormeAI can be configured for multilingual patient conversations depending on the languages your clinic wants to support."],
-    ["What support is available after launch?", "Your clinic can receive onboarding guidance, workflow refinement, and ongoing support based on the plan and rollout scope."],
+    ["Can it support multiple languages?", "StormeAI can be configured for multilingual patient conversations depending on the languages your organization wants to support."],
+    ["What support is available after launch?", "Your organization can receive onboarding guidance, workflow refinement, and ongoing support based on the plan and rollout scope."],
   ];
 
   return (
@@ -317,22 +317,22 @@ function LandingPage() {
 
       <section className="landing-hero editorial-hero" id="product">
         <div className="landing-hero-copy editorial-hero-copy">
-          <span className="landing-kicker"><span /> AI patient chat support for clinics</span>
+          <span className="landing-kicker"><span /> AI patient chat support for organizations</span>
           <h1>Better Care Begins with <strong>Every Answer.</strong></h1>
-          <p>StormeAI helps clinics answer patient questions, collect appointment details, and turn patient chats into organized booking requests.</p>
+          <p>StormeAI helps organizations answer patient questions, collect appointment details, and turn patient chats into organized booking requests.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/auth/sign-up">Get started</Link>
             <a className="ghost-button" href="#how-it-works">See how it works <ArrowRight size={17} /></a>
           </div>
           <div className="hero-trust-row">
-            <span><ShieldCheck size={16} /> Clinic-safe answers</span>
+            <span><ShieldCheck size={16} /> Organization-safe answers</span>
             <span><MessageSquareText size={16} /> Unlimited chats</span>
             <span><Globe2 size={16} /> Messenger + SMS + widget</span>
           </div>
         </div>
 
         <div className="landing-widget-hero" aria-label="StormeAI chat widget preview">
-          <PatientChatWidget receptionistName="Meng" />
+          <PatientChatWidget agentName="Meng" />
         </div>
 
         <div className="landing-channel-strip" aria-label="StormeAI channel integrations">
@@ -355,7 +355,7 @@ function LandingPage() {
         <div className="landing-section-heading split">
           <div>
             <p className="landing-kicker"><span /> What StormeAI handles</p>
-            <h2>An <strong>AI clinic assistant</strong> for patient chat, intake, and booking requests.</h2>
+            <h2>An <strong>AI organization assistant</strong> for patient chat, intake, and booking requests.</h2>
           </div>
           <p>StormeAI keeps patient conversations moving with approved answers, structured appointment details, priority intake rules, and a dashboard your team can review.</p>
         </div>
@@ -375,9 +375,9 @@ function LandingPage() {
         <div className="landing-section-heading split">
           <div>
             <p className="landing-kicker"><span /> How it works</p>
-            <h2>Train StormeAI like a <strong>clinic receptionist.</strong></h2>
+            <h2>Train StormeAI like a <strong>organization agent.</strong></h2>
           </div>
-          <p>Connect your patient channels, add approved clinic information, define booking rules, and customize how conversations should progress.</p>
+          <p>Connect your patient channels, add approved organization information, define booking rules, and customize how conversations should progress.</p>
         </div>
         <div className="setup-grid">
           {setupSteps.map((item) => {
@@ -410,13 +410,13 @@ function LandingPage() {
         <div className="pricing-shell">
           <div className="landing-section-heading center pricing-heading">
             <p className="landing-kicker"><span /> Pricing</p>
-            <h2>Choose the <strong>clinic AI layer</strong> that fits your growth.</h2>
-            <p>Premium patient support, booking automation, and approved clinic knowledge workflows in plans that scale with your operations.</p>
+            <h2>Choose the <strong>organization AI layer</strong> that fits your growth.</h2>
+            <p>Premium patient support, booking automation, and approved organization knowledge workflows in plans that scale with your operations.</p>
           </div>
           <div className="pricing-card-grid">
             {pricingPlans.map((plan) => (
               <article className={`pricing-card ${plan.highlighted ? "featured" : ""}`} key={plan.name}>
-                {plan.highlighted && <div className="popular-pill"><Sparkles size={14} /> Popular for busy clinics</div>}
+                {plan.highlighted && <div className="popular-pill"><Sparkles size={14} /> Popular for busy organizations</div>}
                 <div className="pricing-card-head">
                   <span>{plan.eyebrow}</span>
                   <h3>{plan.name}</h3>
@@ -444,8 +444,8 @@ function LandingPage() {
       <section className="landing-section faq-section" id="faq">
         <div className="faq-intro">
           <p className="landing-kicker"><span /> FAQs</p>
-          <h2>Clear answers for modern clinic teams.</h2>
-          <p>Everything operators usually want to know before adding an AI receptionist to patient conversations.</p>
+          <h2>Clear answers for modern organization teams.</h2>
+          <p>Everything operators usually want to know before adding an AI agent to patient conversations.</p>
           <a className="contact-pill" href="mailto:hello@stormeai.com"><Mail size={16} /> hello@stormeai.com</a>
         </div>
         <div className="faq-list">
@@ -467,8 +467,8 @@ function LandingPage() {
       <section className="landing-section final-cta">
         <div className="final-cta-copy">
           <p className="landing-kicker"><span /> Ready when you are</p>
-          <h2>Give patients instant answers with a calmer clinic workflow.</h2>
-          <p>Launch a premium AI receptionist that supports patient questions, captures appointment intent, and keeps every conversation moving with confidence.</p>
+          <h2>Give patients instant answers with a calmer organization workflow.</h2>
+          <p>Launch a premium AI agent that supports patient questions, captures appointment intent, and keeps every conversation moving with confidence.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/auth/sign-up"><MessageSquareText size={17} /> Try a live chat</Link>
             <a className="ghost-button" href="mailto:hello@stormeai.com">Book a 15-min demo</a>
@@ -487,7 +487,7 @@ function LandingPage() {
             <span><Sparkles size={18} /></span>
             StormeAI
           </Link>
-          <p>AI chat assistance for clinics. Real intake, real bookings, real follow-up.</p>
+          <p>AI chat assistance for organizations. Real intake, real bookings, real follow-up.</p>
         </div>
         <div>
           <strong>Product</strong>
@@ -519,14 +519,25 @@ function LandingPage() {
 }
 
 function AppLayout() {
-  const { clinicId } = useParams();
+  const { agentId } = useParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [testChatOpen, setTestChatOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(localStorage.getItem("stormeai-sidebar-width") || 292));
 
   useEffect(() => {
-    if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
-  }, [clinicId]);
+    if (!agentId || agentId === getWorkspaceSelection().agentId) return;
+    let cancelled = false;
+    async function syncAgentFromRoute() {
+      try {
+        const loaded = await loadAgentSettings(undefined, agentId);
+        if (!cancelled && (loaded.organizationId || loaded.agentId)) persistWorkspaceSelection({ organizationId: loaded.organizationId, agentId: loaded.agentId });
+      } catch {
+        // Let the active page show its normal empty/error state.
+      }
+    }
+    void syncAgentFromRoute();
+    return () => { cancelled = true; };
+  }, [agentId]);
 
   useEffect(() => {
     if (!testChatOpen) return;
@@ -585,37 +596,38 @@ function AppLayout() {
 function AppHeader({ onToggleTestChat, testChatOpen }: { onToggleTestChat: () => void; testChatOpen: boolean }) {
   const navigate = useNavigate();
   const { session } = useAuthState();
-  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
-  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState(getWorkspaceSelection().agentId || "");
   const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    async function loadReceptionists() {
-      const clinicId = getWorkspaceSelection().clinicId;
-      if (!clinicId) {
-        if (mounted) setReceptionists([]);
+    async function loadAgents() {
+      const organizationId = getWorkspaceSelection().organizationId;
+      if (!organizationId) {
+        if (mounted) setAgents([]);
         return;
       }
       try {
-        const items = await listReceptionists(clinicId);
+        const items = await listAgents(organizationId);
         if (!mounted) return;
-        setReceptionists(items);
-        const current = getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
-        setSelectedReceptionistId(current);
+        setAgents(items);
+        const current = getWorkspaceSelection().agentId || items[0]?.agentId || "";
+        setSelectedAgentId(current);
       } catch {
-        if (mounted) setReceptionists([]);
+        if (mounted) setAgents([]);
       }
     }
-    void loadReceptionists();
-    const unsubscribe = subscribeWorkspaceSelection(() => void loadReceptionists());
+    void loadAgents();
+    const unsubscribe = subscribeWorkspaceSelection(() => void loadAgents());
     return () => { mounted = false; unsubscribe(); };
   }, []);
 
-  function switchReceptionist(receptionistId: string) {
-    const clinicId = getWorkspaceSelection().clinicId;
-    setSelectedReceptionistId(receptionistId);
-    persistWorkspaceSelection({ clinicId, receptionistId });
+  function switchAgent(agentId: string) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    setSelectedAgentId(agentId);
+    persistWorkspaceSelection({ organizationId, agentId });
+    navigate(agentPagePath(agentId, currentOrganizationPageSlug(window.location.pathname)), { replace: true });
   }
 
   async function logout() {
@@ -623,7 +635,7 @@ function AppHeader({ onToggleTestChat, testChatOpen }: { onToggleTestChat: () =>
     navigate("/auth/sign-in", { replace: true });
   }
 
-  const selected = receptionists.find((item) => item.receptionistId === selectedReceptionistId) || receptionists[0];
+  const selected = agents.find((item) => item.agentId === selectedAgentId) || agents[0];
   const initials = (selected?.name || "AI").split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "AI";
   const userEmail = session?.user.email || "Signed in";
 
@@ -641,12 +653,12 @@ function AppHeader({ onToggleTestChat, testChatOpen }: { onToggleTestChat: () =>
           <span>{testChatOpen ? "Close test" : "Test chat"}</span>
         </button>
 
-        <div className="header-receptionist-pill">
-          <span className="header-receptionist-avatar">{initials}</span>
-          <select aria-label="Active receptionist" value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-            {receptionists.length === 0 && <option value="">No receptionist</option>}
-            {receptionists.map((item) => (
-              <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>
+        <div className="header-agent-pill">
+          <span className="header-agent-avatar">{initials}</span>
+          <select aria-label="Active agent" value={selectedAgentId} onChange={(event) => switchAgent(event.target.value)}>
+            {agents.length === 0 && <option value="">No agent</option>}
+            {agents.map((item) => (
+              <option key={item.agentId} value={item.agentId}>{item.name}</option>
             ))}
           </select>
         </div>
@@ -669,7 +681,7 @@ function AppHeader({ onToggleTestChat, testChatOpen }: { onToggleTestChat: () =>
               <div className="header-profile-menu" role="menu">
                 <div className="header-profile-info">
                   <strong>{userEmail}</strong>
-                  <span>Receptionist online</span>
+                  <span>Agent online</span>
                 </div>
                 <button type="button" className="header-profile-item" onClick={() => { setProfileOpen(false); void logout(); }}>
                   <LogOut size={15} />
@@ -717,7 +729,7 @@ function ProtectedRoute() {
   const location = useLocation();
   const { loading, session } = useAuthState();
 
-  if (loading) return <RouteLoading label="Checking your clinic session…" />;
+  if (loading) return <RouteLoading label="Checking your organization session…" />;
   if (!session) return <Navigate to="/auth/sign-in" replace state={{ from: location.pathname }} />;
 
   return <Outlet />;
@@ -743,41 +755,41 @@ function RouteLoading({ label }: { label: string }) {
 }
 
 function TestChatSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
-  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState(getWorkspaceSelection().agentId || "");
 
   useEffect(() => {
     let mounted = true;
-    async function loadReceptionists() {
-      const clinicId = getWorkspaceSelection().clinicId;
-      if (!clinicId) {
-        if (mounted) setReceptionists([]);
+    async function loadAgents() {
+      const organizationId = getWorkspaceSelection().organizationId;
+      if (!organizationId) {
+        if (mounted) setAgents([]);
         return;
       }
       try {
-        const items = await listReceptionists(clinicId);
+        const items = await listAgents(organizationId);
         if (!mounted) return;
-        setReceptionists(items);
-        const current = getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
-        setSelectedReceptionistId(current);
-        if (current) persistWorkspaceSelection({ clinicId, receptionistId: current });
+        setAgents(items);
+        const current = getWorkspaceSelection().agentId || items[0]?.agentId || "";
+        setSelectedAgentId(current);
+        if (current) persistWorkspaceSelection({ organizationId, agentId: current });
       } catch {
-        if (mounted) setReceptionists([]);
+        if (mounted) setAgents([]);
       }
     }
-    void loadReceptionists();
-    const unsubscribe = subscribeWorkspaceSelection(() => void loadReceptionists());
+    void loadAgents();
+    const unsubscribe = subscribeWorkspaceSelection(() => void loadAgents());
     return () => { mounted = false; unsubscribe(); };
   }, []);
 
-  function switchReceptionist(receptionistId: string) {
-    const clinicId = getWorkspaceSelection().clinicId;
-    setSelectedReceptionistId(receptionistId);
-    persistWorkspaceSelection({ clinicId, receptionistId });
+  function switchAgent(agentId: string) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    setSelectedAgentId(agentId);
+    persistWorkspaceSelection({ organizationId, agentId });
   }
 
-  const selectedReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
-  const selectedReceptionistName = selectedReceptionist?.name || "Meng";
+  const selectedAgent = agents.find((item) => item.agentId === selectedAgentId);
+  const selectedAgentName = selectedAgent?.name || "Meng";
 
   return (
     <aside className={`test-chat-sidebar ${open ? "open d-flex" : "d-none"}`} aria-hidden={!open}>
@@ -791,21 +803,21 @@ function TestChatSidebar({ open, onClose }: { open: boolean; onClose: () => void
       </header>
 
       <div className="test-chat-meta">
-        <h3>{selectedReceptionistName}</h3>
-        <p>An AI chat receptionist ready to answer patient questions, capture booking requests, and assist your clinic staff.</p>
+        <h3>{selectedAgentName}</h3>
+        <p>An AI chat agent ready to answer patient questions, capture booking requests, and assist your organization staff.</p>
       </div>
 
-      {receptionists.length > 1 && (
-        <div className="test-chat-receptionist-select">
-          <label>AI receptionist</label>
-          <select value={selectedReceptionistId} onChange={(event) => switchReceptionist(event.target.value)}>
-            {receptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>)}
+      {agents.length > 1 && (
+        <div className="test-chat-agent-select">
+          <label>AI agent</label>
+          <select value={selectedAgentId} onChange={(event) => switchAgent(event.target.value)}>
+            {agents.map((item) => <option key={item.agentId} value={item.agentId}>{item.name}</option>)}
           </select>
         </div>
       )}
 
       <div className="test-chat-body">
-        <PatientChatWidget key={selectedReceptionistId || "default-receptionist"} receptionistName={selectedReceptionistName} />
+        <PatientChatWidget key={selectedAgentId || "default-agent"} agentName={selectedAgentName} />
       </div>
 
       <div className="test-chat-footer-hint">
@@ -818,19 +830,17 @@ function TestChatSidebar({ open, onClose }: { open: boolean; onClose: () => void
 
 function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => void; onClose?: () => void; onResizeStart?: (event: React.PointerEvent<HTMLButtonElement>) => void }) {
   const navigate = useNavigate();
-  const { clinicId } = useParams();
   const { session } = useAuthState();
-  const [activeClinicId, setActiveClinicId] = useState(clinicId || getWorkspaceSelection().clinicId || "");
+  const [activeAgentId, setActiveAgentId] = useState(getWorkspaceSelection().agentId || "");
 
-  useEffect(() => subscribeWorkspaceSelection(() => setActiveClinicId(getWorkspaceSelection().clinicId || "")), []);
-  useEffect(() => { if (clinicId) setActiveClinicId(clinicId); }, [clinicId]);
+  useEffect(() => subscribeWorkspaceSelection(() => setActiveAgentId(getWorkspaceSelection().agentId || "")), []);
 
   async function logout() {
     await supabase?.auth.signOut();
     navigate("/auth/sign-in", { replace: true });
   }
 
-  const primaryPath = activeClinicId ? clinicPagePath(activeClinicId, primaryNavItem.path) : "/dashboard";
+  const primaryPath = activeAgentId ? agentPagePath(activeAgentId, primaryNavItem.path) : "/dashboard";
   const PrimaryIcon = primaryNavItem.icon;
 
   return (
@@ -840,11 +850,11 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
         <div className="brand-mark"><Sparkles size={22} /></div>
         <div>
           <p className="brand-name">StormeAI</p>
-          <p className="brand-subtitle">Clinic receptionist</p>
+          <p className="brand-subtitle">Organization agent</p>
         </div>
       </div>
 
-      <ClinicSwitcher />
+      <OrganizationSwitcher />
 
       <nav className="nav-list grouped-nav">
         <NavLink
@@ -865,7 +875,7 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
             </div>
             <div className="nav-group-items">
               {group.items.map((item) => {
-                const path = activeClinicId ? clinicPagePath(activeClinicId, item.path) : "/dashboard";
+                const path = activeAgentId ? agentPagePath(activeAgentId, item.path) : "/dashboard";
                 return (
                   <NavLink className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`} to={path} key={item.label} onClick={onNavigate}>
                     <item.icon size={18} />
@@ -882,7 +892,7 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
         <div className="status-dot" />
         <div>
           <strong>{session?.user.email || "Signed in"}</strong>
-          <span>Receptionist online · 2.1s avg response</span>
+          <span>Agent online · 2.1s avg response</span>
         </div>
       </div>
 
@@ -895,47 +905,61 @@ function Sidebar({ onNavigate, onClose, onResizeStart }: { onNavigate?: () => vo
   );
 }
 
-function ClinicSwitcher() {
+function OrganizationSwitcher() {
   const navigate = useNavigate();
-  const [clinics, setClinics] = useState<ClinicWorkspaceOption[]>([]);
-  const [selected, setSelected] = useState(getWorkspaceSelection().clinicId || "");
-  const [status, setStatus] = useState("Loading clinics…");
+  const [organizations, setOrganizations] = useState<OrganizationOption[]>([]);
+  const [selected, setSelected] = useState(getWorkspaceSelection().organizationId || "");
+  const [status, setStatus] = useState("Loading organizations…");
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
-        const items = await listClinicWorkspaces();
+        const items = await getUserOrganization();
         if (!mounted) return;
-        setClinics(items);
-        const current = getWorkspaceSelection().clinicId || items[0]?.clinicId || "";
-        if (current && !getWorkspaceSelection().clinicId) setSelectedClinic(current);
+        setOrganizations(items);
+        const current = getWorkspaceSelection().organizationId || items[0]?.organizationId || "";
+        if (current && !getWorkspaceSelection().organizationId) setSelectedOrganization(current);
         setSelected(current);
-        setStatus(items.length ? "Active clinic" : "No clinic yet");
+        setStatus(items.length ? "Active organization" : "No organization yet");
       } catch (error) {
-        if (mounted) setStatus(error instanceof Error ? error.message : "Failed to load clinics");
+        if (mounted) setStatus(error instanceof Error ? error.message : "Failed to load organizations");
       }
     }
     void load();
     return () => { mounted = false; };
   }, []);
 
-  function switchClinic(clinicId: string) {
-    setSelected(clinicId);
-    setSelectedClinic(clinicId);
-    navigate(clinicPagePath(clinicId, currentClinicPageSlug(window.location.pathname)), { replace: true });
+  async function switchOrganization(organizationId: string) {
+    setSelected(organizationId);
+    setStatus("Loading agents…");
+    try {
+      const items = await listAgents(organizationId);
+      const agentId = items[0]?.agentId || "";
+      if (agentId) {
+        persistWorkspaceSelection({ organizationId, agentId });
+        navigate(agentPagePath(agentId, currentOrganizationPageSlug(window.location.pathname)), { replace: true });
+        setStatus("Active organization");
+      } else {
+        setSelectedOrganization(organizationId);
+        navigate("/ai-agent", { replace: true });
+        setStatus("No agents yet");
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to load agents");
+    }
   }
 
-  const activeClinic = clinics.find((clinic) => clinic.clinicId === selected);
+  const activeOrganization = organizations.find((organization) => organization.organizationId === selected);
 
   return (
-    <div className="clinic-switcher">
-      <div className="clinic-switcher-header">
-        <span>Active clinic</span>
-        {activeClinic && <strong>{activeClinic.role}</strong>}
+    <div className="organization-switcher">
+      <div className="organization-switcher-header">
+        <span>Active organization</span>
+        {activeOrganization && <strong>{activeOrganization.role}</strong>}
       </div>
-      <select aria-label="Switch active clinic" value={selected} onChange={(event) => switchClinic(event.target.value)}>
-        {clinics.map((clinic) => <option key={clinic.clinicId} value={clinic.clinicId}>{clinic.clinicName} · {clinic.role}</option>)}
+      <select aria-label="Switch active organization" value={selected} onChange={(event) => switchOrganization(event.target.value)}>
+        {organizations.map((organization) => <option key={organization.organizationId} value={organization.organizationId}>{organization.organizationName} · {organization.role}</option>)}
       </select>
       <p>{status}</p>
     </div>
@@ -946,29 +970,39 @@ function PageHeader(_props: { eyebrow: string; title: string; action?: string })
   return null;
 }
 
-function clinicPagePath(clinicId: string, page: string) {
-  return `/${page.replace(/^\//, "")}/${clinicId}`;
+function agentPagePath(agentId: string, page: string) {
+  return `/${page.replace(/^\//, "")}/${agentId}`;
 }
 
-function currentClinicPageSlug(pathname: string) {
+function selectedAgentPagePath(page: string) {
+  const agentId = getWorkspaceSelection().agentId;
+  return agentId ? agentPagePath(agentId, page) : "/organizations";
+}
+
+function organizationPagePath(organizationId: string, page: string) {
+  void organizationId;
+  return selectedAgentPagePath(page);
+}
+
+function currentOrganizationPageSlug(pathname: string) {
   const page = pathname.split("/").filter(Boolean)[0];
   const known = navItems.some((item) => item.path === page);
   return known ? page : "dashboard";
 }
 
 function DashboardRedirect() {
-  const clinicId = getWorkspaceSelection().clinicId;
-  return <Navigate to={clinicId ? clinicPagePath(clinicId, "dashboard") : "/clinics"} replace />;
+  const agentId = getWorkspaceSelection().agentId;
+  return <Navigate to={agentId ? agentPagePath(agentId, "dashboard") : "/organizations"} replace />;
 }
 
-function LegacyClinicPageRedirect({ page }: { page: string }) {
+function LegacyOrganizationPageRedirect({ page }: { page: string }) {
   const params = useParams();
-  const clinicId = params.clinicId || getWorkspaceSelection().clinicId;
-  return <Navigate to={clinicId ? clinicPagePath(clinicId, page) : "/clinics"} replace />;
+  const agentId = params.agentId || getWorkspaceSelection().agentId;
+  return <Navigate to={agentId ? agentPagePath(agentId, page) : "/organizations"} replace />;
 }
 
 function DashboardPage() {
-  const { clinicId } = useParams();
+  const { agentId: routeAgentId } = useParams();
   const navigate = useNavigate();
   const { session } = useAuthState();
   const [stats, setStats] = useState({
@@ -979,26 +1013,30 @@ function DashboardPage() {
     confirmedAppointments: 0,
     knowledge: 0,
     marketingContacts: 0,
-    receptionistCount: 0,
+    agentCount: 0,
   });
-  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
+  const [agents, setAgents] = useState<AgentOption[]>([]);
   const [, setStatus] = useState("Loading analytics…");
 
   async function loadDashboardStats() {
-    const activeClinicId = clinicId || getWorkspaceSelection().clinicId;
-    if (!activeClinicId) return setStatus("Choose a clinic first.");
-    if (clinicId && getWorkspaceSelection().clinicId !== clinicId) setSelectedClinic(clinicId);
+    const selection = getWorkspaceSelection();
+    if (routeAgentId && routeAgentId !== selection.agentId) {
+      const loaded = await loadAgentSettings(undefined, routeAgentId);
+      if (loaded.organizationId || loaded.agentId) persistWorkspaceSelection({ organizationId: loaded.organizationId, agentId: loaded.agentId });
+    }
+    const activeOrganizationId = getWorkspaceSelection().organizationId;
+    if (!activeOrganizationId) return setStatus("Choose an organization first.");
     if (!supabase) return setStatus("Supabase is not configured.");
 
-    const [messages, sessions, appointments, requested, confirmed, knowledge, receptionistList, appointmentContacts] = await Promise.all([
-      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "requested"),
-      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId).eq("status", "confirmed"),
-      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId),
-      listReceptionists(activeClinicId).then((items) => ({ count: items.length, data: items, error: null })).catch((error) => ({ count: 0, data: [] as ReceptionistOption[], error })),
-      supabase.from("appointments").select("patients(id,email,phone)").eq("clinic_id", activeClinicId),
+    const [messages, sessions, appointments, requested, confirmed, knowledge, agentList, appointmentContacts] = await Promise.all([
+      supabase.from("chat_messages").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId).eq("status", "requested"),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId).eq("status", "confirmed"),
+      supabase.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganizationId),
+      listAgents(activeOrganizationId).then((items) => ({ count: items.length, data: items, error: null })).catch((error) => ({ count: 0, data: [] as AgentOption[], error })),
+      supabase.from("appointments").select("patients(id,email,phone)").eq("organization_id", activeOrganizationId),
     ]);
 
     const contactKeys = new Set<string>();
@@ -1016,18 +1054,19 @@ function DashboardPage() {
       confirmedAppointments: confirmed.count || 0,
       knowledge: knowledge.count || 0,
       marketingContacts: contactKeys.size,
-      receptionistCount: receptionistList.count || 0,
+      agentCount: agentList.count || 0,
     });
-    setReceptionists(receptionistList.data || []);
-    setStatus("Clinic analytics loaded.");
+    setAgents(agentList.data || []);
+    setStatus("Organization analytics loaded.");
   }
 
   useEffect(() => {
     void loadDashboardStats();
     return subscribeWorkspaceSelection(() => void loadDashboardStats());
-  }, [clinicId]);
+  }, [routeAgentId]);
 
-  const activeClinicId = clinicId || getWorkspaceSelection().clinicId || "";
+  const activeOrganizationId = getWorkspaceSelection().organizationId || "";
+  const activeAgentId = routeAgentId || getWorkspaceSelection().agentId || "";
 
   // Greeting
   const hour = new Date().getHours();
@@ -1038,29 +1077,31 @@ function DashboardPage() {
     || "";
   const firstName = fullName.split(/\s+/)[0] || userEmail.split("@")[0] || "there";
 
-  const receptionistCount = receptionists.length || stats.receptionistCount;
-  const receptionistWord = receptionistCount === 1 ? "receptionist" : "receptionists";
+  const agentCount = agents.length || stats.agentCount;
+  const agentWord = agentCount === 1 ? "agent" : "agents";
 
   function openTestChat() {
     window.dispatchEvent(new CustomEvent("storme:open-test-chat"));
   }
 
-  function openReceptionistSetup(receptionistId?: string) {
-    if (receptionistId) {
-      persistWorkspaceSelection({ clinicId: activeClinicId, receptionistId });
+  function openAgentSetup(agentId?: string) {
+    const targetAgentId = agentId || activeAgentId;
+    if (agentId) {
+      persistWorkspaceSelection({ organizationId: activeOrganizationId, agentId });
     }
-    navigate(clinicPagePath(activeClinicId, "ai-receptionist"));
+    navigate(targetAgentId ? agentPagePath(targetAgentId, "ai-agent") : selectedAgentPagePath("ai-agent"));
   }
 
-  function openChats(receptionistId?: string) {
-    if (receptionistId) {
-      persistWorkspaceSelection({ clinicId: activeClinicId, receptionistId });
+  function openChats(agentId?: string) {
+    const targetAgentId = agentId || activeAgentId;
+    if (agentId) {
+      persistWorkspaceSelection({ organizationId: activeOrganizationId, agentId });
     }
-    navigate(clinicPagePath(activeClinicId, "chats"));
+    navigate(targetAgentId ? agentPagePath(targetAgentId, "chats") : selectedAgentPagePath("chats"));
   }
 
-  function createReceptionistFlow() {
-    navigate(clinicPagePath(activeClinicId, "ai-receptionist"));
+  function createAgentFlow() {
+    navigate(activeAgentId ? agentPagePath(activeAgentId, "ai-agent") : selectedAgentPagePath("ai-agent"));
   }
 
   return (
@@ -1070,12 +1111,12 @@ function DashboardPage() {
           <span className="instack-hero-eyebrow">Overview</span>
           <h1 className="instack-hero-title">{greetingPart}, {firstName}.</h1>
           <p className="instack-hero-subtitle">
-            You have {receptionistCount} {receptionistWord}. Pick where to go next.
+            You have {agentCount} {agentWord}. Pick where to go next.
           </p>
         </div>
-        <button type="button" className="instack-hero-cta" onClick={createReceptionistFlow}>
+        <button type="button" className="instack-hero-cta" onClick={createAgentFlow}>
           <Plus size={16} />
-          <span>New receptionist</span>
+          <span>New agent</span>
         </button>
       </section>
 
@@ -1083,16 +1124,16 @@ function DashboardPage() {
         <article className="instack-stat-card">
           <div className="instack-stat-icon instack-stat-icon-blue"><RobotEmojiIcon size={20} /></div>
           <div>
-            <span className="instack-stat-label">Total receptionists</span>
-            <strong className="instack-stat-value">{receptionistCount}</strong>
+            <span className="instack-stat-label">Total agents</span>
+            <strong className="instack-stat-value">{agentCount}</strong>
           </div>
         </article>
         <article className="instack-stat-card">
           <div className="instack-stat-icon instack-stat-icon-green"><Users size={20} /></div>
           <div>
             <span className="instack-stat-label">Active</span>
-            <strong className="instack-stat-value">{receptionistCount}</strong>
-            <p className="instack-stat-foot">{receptionistCount > 0 ? "All running" : "None yet"}</p>
+            <strong className="instack-stat-value">{agentCount}</strong>
+            <p className="instack-stat-foot">{agentCount > 0 ? "All running" : "None yet"}</p>
           </div>
         </article>
         <button type="button" className="instack-stat-card instack-stat-action" onClick={openTestChat}>
@@ -1108,20 +1149,20 @@ function DashboardPage() {
 
       <section className="instack-agents-section">
         <header className="instack-section-header">
-          <h2>Your receptionists</h2>
-          <p>Tap any receptionist to manage it.</p>
+          <h2>Your agents</h2>
+          <p>Tap any agent to manage it.</p>
         </header>
 
         <div className="instack-agents-grid">
-          {receptionists.map((item) => {
+          {agents.map((item) => {
             const initials = (item.name || "AI").split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "AI";
             return (
-              <article className="instack-agent-card" key={item.receptionistId}>
+              <article className="instack-agent-card" key={item.agentId}>
                 <button
                   type="button"
                   className="instack-agent-open"
                   aria-label={`Open ${item.name}`}
-                  onClick={() => openReceptionistSetup(item.receptionistId)}
+                  onClick={() => openAgentSetup(item.agentId)}
                 >
                   <ArrowRight size={14} />
                 </button>
@@ -1133,14 +1174,14 @@ function DashboardPage() {
                   </div>
                 </div>
                 <p className="instack-agent-description">
-                  An AI chat receptionist ready to answer patient questions and capture booking requests for your clinic.
+                  An AI chat agent ready to answer patient questions and capture booking requests for your organization.
                 </p>
                 <div className="instack-agent-actions">
-                  <button type="button" className="instack-agent-button" onClick={() => openReceptionistSetup(item.receptionistId)}>
+                  <button type="button" className="instack-agent-button" onClick={() => openAgentSetup(item.agentId)}>
                     <Settings2 size={14} />
                     <span>Setup</span>
                   </button>
-                  <button type="button" className="instack-agent-button" onClick={() => openChats(item.receptionistId)}>
+                  <button type="button" className="instack-agent-button" onClick={() => openChats(item.agentId)}>
                     <BarChart3 size={14} />
                     <span>Chats</span>
                   </button>
@@ -1149,10 +1190,10 @@ function DashboardPage() {
             );
           })}
 
-          <button type="button" className="instack-agent-card instack-agent-card-empty" onClick={createReceptionistFlow}>
+          <button type="button" className="instack-agent-card instack-agent-card-empty" onClick={createAgentFlow}>
             <div className="instack-empty-plus"><Plus size={22} /></div>
-            <strong>New receptionist</strong>
-            <span>Spin up another chat receptionist.</span>
+            <strong>New agent</strong>
+            <span>Spin up another chat agent.</span>
           </button>
         </div>
       </section>
@@ -1225,60 +1266,60 @@ function DashboardBars({ items }: { items: Array<{ label: string; value: number;
 }
 
 
-function DashboardAreaList({ activeClinicId, stats }: { activeClinicId: string; stats: { sessions: number; appointments: number; knowledge: number; marketingContacts: number; receptionistCount: number } }) {
+function DashboardAreaList({ activeOrganizationId, stats }: { activeOrganizationId: string; stats: { sessions: number; appointments: number; knowledge: number; marketingContacts: number; agentCount: number } }) {
   const rows = [
     ["Chats", `${stats.sessions} sessions`, "chats", MessageSquareText],
     ["Appointments", `${stats.appointments} requests`, "appointments", CalendarCheck],
     ["Marketing", `${stats.marketingContacts} contacts`, "marketing", Megaphone],
     ["Knowledge Base", `${stats.knowledge} sources`, "knowledge-base", DatabaseZap],
-    ["AI Receptionist", `${stats.receptionistCount} personas`, "ai-receptionist", RobotEmojiIcon],
+    ["AI Agent", `${stats.agentCount} personas`, "ai-agent", RobotEmojiIcon],
     ["Integrations", "Widget + channels", "integrations", Globe2],
   ] as const;
-  return <div className="dashboard-area-list">{rows.map(([label, value, page, Icon]) => <NavLink key={label} to={clinicPagePath(activeClinicId, page)}><Icon size={18} /><span>{label}</span><strong>{value}</strong><ChevronRight size={16} /></NavLink>)}</div>;
+  return <div className="dashboard-area-list">{rows.map(([label, value, page, Icon]) => <NavLink key={label} to={selectedAgentPagePath(page)}><Icon size={18} /><span>{label}</span><strong>{value}</strong><ChevronRight size={16} /></NavLink>)}</div>;
 }
 
-function DashboardActionCards({ activeClinicId, stats }: { activeClinicId: string; stats: { requestedAppointments: number; marketingContacts: number; knowledge: number } }) {
+function DashboardActionCards({ activeOrganizationId, stats }: { activeOrganizationId: string; stats: { requestedAppointments: number; marketingContacts: number; knowledge: number } }) {
   return <div className="dashboard-action-cards">
-    <NavLink to={clinicPagePath(activeClinicId, "appointments")}><strong>Confirm booking requests</strong><span>{stats.requestedAppointments} waiting for staff review</span></NavLink>
-    <NavLink to={clinicPagePath(activeClinicId, "marketing")}><strong>Send patient notice</strong><span>{stats.marketingContacts} contacts available for campaigns</span></NavLink>
-    <NavLink to={clinicPagePath(activeClinicId, "knowledge-base")}><strong>Improve answers</strong><span>{stats.knowledge ? `${stats.knowledge} sources active` : "Add your first approved FAQ"}</span></NavLink>
+    <NavLink to={selectedAgentPagePath("appointments")}><strong>Confirm booking requests</strong><span>{stats.requestedAppointments} waiting for staff review</span></NavLink>
+    <NavLink to={selectedAgentPagePath("marketing")}><strong>Send patient notice</strong><span>{stats.marketingContacts} contacts available for campaigns</span></NavLink>
+    <NavLink to={selectedAgentPagePath("knowledge-base")}><strong>Improve answers</strong><span>{stats.knowledge ? `${stats.knowledge} sources active` : "Add your first approved FAQ"}</span></NavLink>
   </div>;
 }
 
-function ReceptionistPage() {
-  const [settings, setSettings] = useState<ReceptionistSettingsRecord>(defaultReceptionistSettings);
-  const [status, setStatus] = useState("Loading AI receptionist settings…");
+function AgentPage() {
+  const [settings, setSettings] = useState<AgentSettingsRecord>(defaultAgentSettings);
+  const [status, setStatus] = useState("Loading AI agent settings…");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [receptionists, setReceptionists] = useState<ReceptionistOption[]>([]);
-  const [selectedClinicId, setSelectedClinicId] = useState(getWorkspaceSelection().clinicId || "");
-  const [selectedReceptionistId, setSelectedReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState(getWorkspaceSelection().organizationId || "");
+  const [selectedAgentId, setSelectedAgentId] = useState(getWorkspaceSelection().agentId || "");
   const promptPreview = useMemo(() => buildSettingsPromptPreview(settings), [settings]);
 
-  async function refreshReceptionists(clinicId: string, preferredReceptionistId?: string) {
-    const items = await listReceptionists(clinicId);
-    setReceptionists(items);
-    const nextReceptionistId = preferredReceptionistId || getWorkspaceSelection().receptionistId || items[0]?.receptionistId || "";
-    if (nextReceptionistId) {
-      setSelectedReceptionistId(nextReceptionistId);
-      persistWorkspaceSelection({ clinicId, receptionistId: nextReceptionistId });
+  async function refreshAgents(organizationId: string, preferredAgentId?: string) {
+    const items = await listAgents(organizationId);
+    setAgents(items);
+    const nextAgentId = preferredAgentId || getWorkspaceSelection().agentId || items[0]?.agentId || "";
+    if (nextAgentId) {
+      setSelectedAgentId(nextAgentId);
+      persistWorkspaceSelection({ organizationId, agentId: nextAgentId });
     }
-    return nextReceptionistId;
+    return nextAgentId;
   }
 
   async function loadForSelection() {
     setLoading(true);
     const selection = getWorkspaceSelection();
     try {
-      const loaded = await loadReceptionistSettings(selection.clinicId, selection.receptionistId);
+      const loaded = await loadAgentSettings(selection.organizationId, selection.agentId);
       setSettings(loaded);
-      setSelectedClinicId(loaded.clinicId || "");
-      setSelectedReceptionistId(loaded.receptionistId || "");
-      if (loaded.clinicId || loaded.receptionistId) persistWorkspaceSelection({ clinicId: loaded.clinicId, receptionistId: loaded.receptionistId });
-      if (loaded.clinicId) await refreshReceptionists(loaded.clinicId, loaded.receptionistId);
-      setStatus(`Loaded ${loaded.name} for ${loaded.clinicName || "your clinic"}.`);
+      setSelectedOrganizationId(loaded.organizationId || "");
+      setSelectedAgentId(loaded.agentId || "");
+      if (loaded.organizationId || loaded.agentId) persistWorkspaceSelection({ organizationId: loaded.organizationId, agentId: loaded.agentId });
+      if (loaded.organizationId) await refreshAgents(loaded.organizationId, loaded.agentId);
+      setStatus(`Loaded ${loaded.name} for ${loaded.organizationName || "your organization"}.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load AI receptionist settings.");
+      setStatus(error instanceof Error ? error.message : "Failed to load AI agent settings.");
     } finally {
       setLoading(false);
     }
@@ -1289,111 +1330,111 @@ function ReceptionistPage() {
     return subscribeWorkspaceSelection(() => void loadForSelection());
   }, []);
 
-  async function switchReceptionist(receptionistId: string) {
-    setSelectedReceptionistId(receptionistId);
-    persistWorkspaceSelection({ clinicId: selectedClinicId || undefined, receptionistId });
+  async function switchAgent(agentId: string) {
+    setSelectedAgentId(agentId);
+    persistWorkspaceSelection({ organizationId: selectedOrganizationId || undefined, agentId });
     setLoading(true);
     try {
-      const loaded = await loadReceptionistSettings(selectedClinicId || undefined, receptionistId);
+      const loaded = await loadAgentSettings(selectedOrganizationId || undefined, agentId);
       setSettings(loaded);
       setStatus(`Switched to ${loaded.name}.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to switch receptionist.");
+      setStatus(error instanceof Error ? error.message : "Failed to switch agent.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function addReceptionist(event?: FormEvent) {
+  async function addAgent(event?: FormEvent) {
     event?.preventDefault();
-    if (!selectedClinicId) return setStatus("Choose a clinic before adding a receptionist.");
-    const name = newReceptionistName.trim() || "New Receptionist";
+    if (!selectedOrganizationId) return setStatus("Choose an organization before adding an agent.");
+    const name = newAgentName.trim() || "New Agent";
     setSaving(true);
     try {
-      const newId = await createReceptionist(selectedClinicId, name);
-      await refreshReceptionists(selectedClinicId, newId);
-      const loaded = await loadReceptionistSettings(selectedClinicId, newId);
+      const newId = await createAgent(selectedOrganizationId, name);
+      await refreshAgents(selectedOrganizationId, newId);
+      const loaded = await loadAgentSettings(selectedOrganizationId, newId);
       setSettings(loaded);
-      setCreateReceptionistOpen(false);
-      setNewReceptionistName("");
+      setCreateAgentOpen(false);
+      setNewAgentName("");
       setStatus(`Created and switched to ${loaded.name}.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to create receptionist.");
+      setStatus(error instanceof Error ? error.message : "Failed to create agent.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleSave(nextSettings: ReceptionistSettingsRecord) {
+  async function handleSave(nextSettings: AgentSettingsRecord) {
     setSaving(true);
-    setStatus("Saving AI receptionist settings…");
+    setStatus("Saving AI agent settings…");
     try {
-      const saved = await saveReceptionistSettings({ ...nextSettings, clinicId: selectedClinicId || nextSettings.clinicId, receptionistId: selectedReceptionistId || nextSettings.receptionistId });
+      const saved = await saveAgentSettings({ ...nextSettings, organizationId: selectedOrganizationId || nextSettings.organizationId, agentId: selectedAgentId || nextSettings.agentId });
       setSettings(saved);
-      if (saved.clinicId) await refreshReceptionists(saved.clinicId, saved.receptionistId);
+      if (saved.organizationId) await refreshAgents(saved.organizationId, saved.agentId);
       setStatus(`Saved. ${saved.name} is ready for live chat tests.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to save AI receptionist settings.");
+      setStatus(error instanceof Error ? error.message : "Failed to save AI agent settings.");
     } finally {
       setSaving(false);
     }
   }
 
   const [promptOpen, setPromptOpen] = useState(false);
-  const [createReceptionistOpen, setCreateReceptionistOpen] = useState(false);
-  const [newReceptionistName, setNewReceptionistName] = useState("");
-  const activeReceptionist = receptionists.find((item) => item.receptionistId === selectedReceptionistId);
+  const [createAgentOpen, setCreateAgentOpen] = useState(false);
+  const [newAgentName, setNewAgentName] = useState("");
+  const activeAgent = agents.find((item) => item.agentId === selectedAgentId);
 
   return (
-    <section className="ai-receptionist-modern-page">
-      <div className="ai-receptionist-hero">
+    <section className="ai-agent-modern-page">
+      <div className="ai-agent-hero">
         <div className="ai-orb"><span className="robot-hero-emoji" aria-hidden="true">🤖</span></div>
         <div>
           <span className="badge teal"><Sparkles size={14} /> StormeAI persona builder</span>
-          <h1>AI Receptionist Studio</h1>
-          <p>Design the clinic’s chat-only front desk persona, booking behavior, operating rules, and approved-knowledge boundaries.</p>
+          <h1>AI Agent Studio</h1>
+          <p>Design the organization’s chat-only front desk persona, booking behavior, operating rules, and approved-knowledge boundaries.</p>
         </div>
-        <button className="primary-button add-receptionist-button" type="button" onClick={() => setCreateReceptionistOpen(true)} disabled={saving}>{saving ? "Creating…" : <><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg> Add receptionist</>}</button>
+        <button className="primary-button add-agent-button" type="button" onClick={() => setCreateAgentOpen(true)} disabled={saving}>{saving ? "Creating…" : <><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg> Add agent</>}</button>
       </div>
 
-      <section className="ai-receptionist-grid">
+      <section className="ai-agent-grid">
         <aside className="persona-panel">
           <div className="persona-panel-head">
             <p className="eyebrow">Personas</p>
-            <strong>{receptionists.length} receptionist{receptionists.length === 1 ? "" : "s"}</strong>
+            <strong>{agents.length} agent{agents.length === 1 ? "" : "s"}</strong>
           </div>
           <div className="persona-list">
-            {receptionists.length ? receptionists.map((item) => (
-              <button className={`persona-card ${item.receptionistId === selectedReceptionistId ? "active" : ""}`} key={item.receptionistId} type="button" onClick={() => void switchReceptionist(item.receptionistId)}>
+            {agents.length ? agents.map((item) => (
+              <button className={`persona-card ${item.agentId === selectedAgentId ? "active" : ""}`} key={item.agentId} type="button" onClick={() => void switchAgent(item.agentId)}>
                 <span className="persona-avatar" aria-hidden="true">🤖</span>
                 <div><strong>{item.name}</strong><span>Default AI Model</span></div>
-                {item.receptionistId === selectedReceptionistId && <Check size={16} />}
+                {item.agentId === selectedAgentId && <Check size={16} />}
               </button>
-            )) : <p className="empty-state">No receptionist personas yet.</p>}
+            )) : <p className="empty-state">No agent personas yet.</p>}
           </div>
           <div className="persona-insight-card">
             <MessageSquareText size={20} />
-            <div><strong>Chat-only receptionist</strong><span>No diagnosis, no prescriptions, appointment requests only.</span></div>
+            <div><strong>Chat-only agent</strong><span>No diagnosis, no prescriptions, appointment requests only.</span></div>
           </div>
         </aside>
 
-        <main className="receptionist-config-panel">
+        <main className="agent-config-panel">
           <div className="config-panel-topbar">
             <div>
               <p className="eyebrow">Configuration</p>
-              <h2>{settings.name || activeReceptionist?.name || "Receptionist"}</h2>
+              <h2>{settings.name || activeAgent?.name || "Agent"}</h2>
               <span>{status}</span>
             </div>
             <button className="ghost-button prompt-preview-trigger modern" type="button" onClick={() => setPromptOpen(true)}><ClipboardLike size={16} /> Prompt preview</button>
           </div>
-          <ReceptionistSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
+          <AgentSettingsForm value={settings} loading={loading} saving={saving} status={status} onChange={setSettings} onSave={handleSave} />
         </main>
 
         <aside className="ai-live-summary-panel">
           <div className="summary-ai-card">
             <div className="ai-pulse"><span className="robot-summary-emoji" aria-hidden="true">🤖</span></div>
             <h3>{settings.name || "Meng"}</h3>
-            <span>{settings.clinicName || "Selected clinic"}</span>
+            <span>{settings.organizationName || "Selected organization"}</span>
           </div>
           <div className="summary-stat-list">
             <div><span>Model</span><strong>Default AI Model</strong></div>
@@ -1403,7 +1444,7 @@ function ReceptionistPage() {
           </div>
           <div className="mini-chat-preview-card">
             <strong>Patient preview</strong>
-            <div className="mini-chat-bubble assistant">Hi! I’m {settings.name || "Meng"}, the clinic AI receptionist. How can I help?</div>
+            <div className="mini-chat-bubble assistant">Hi! I’m {settings.name || "Meng"}, the organization AI agent. How can I help?</div>
             <div className="mini-chat-bubble patient">I want to book an appointment.</div>
             <div className="mini-chat-bubble assistant">Please tap Redirect to enter appointment details clearly.</div>
           </div>
@@ -1412,27 +1453,27 @@ function ReceptionistPage() {
 
 
 
-      {createReceptionistOpen && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add AI receptionist">
-          <div className="prompt-modal create-modal ai-receptionist-create-modal">
+      {createAgentOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add AI agent">
+          <div className="prompt-modal create-modal ai-agent-create-modal">
             <div className="prompt-modal-header">
               <div className="ai-modal-title-row">
                 <span className="ai-modal-robot" aria-hidden="true">🤖</span>
                 <div>
-                  <p className="eyebrow">AI Receptionist</p>
-                  <h2>Add receptionist</h2>
-                  <span>Create a new chat-only receptionist persona for this clinic. You can customize tone, language, booking rules, and knowledge behavior after creating it.</span>
+                  <p className="eyebrow">AI Agent</p>
+                  <h2>Add agent</h2>
+                  <span>Create a new chat-only agent persona for this organization. You can customize tone, language, booking rules, and knowledge behavior after creating it.</span>
                 </div>
               </div>
-              <button className="ghost-button" type="button" onClick={() => { setCreateReceptionistOpen(false); setNewReceptionistName(""); }}>Close</button>
+              <button className="ghost-button" type="button" onClick={() => { setCreateAgentOpen(false); setNewAgentName(""); }}>Close</button>
             </div>
-            <form className="ai-receptionist-create-form" onSubmit={(event) => void addReceptionist(event)}>
-              <label className="full-field">Receptionist name<input value={newReceptionistName} onChange={(event) => setNewReceptionistName(event.target.value)} placeholder="Dark Lord" autoFocus /></label>
+            <form className="ai-agent-create-form" onSubmit={(event) => void addAgent(event)}>
+              <label className="full-field">Agent name<input value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Dark Lord" autoFocus /></label>
               <div className="ai-create-info-card">
                 <strong>Default AI Model</strong>
-                <span>This receptionist will use the clinic’s local default model and stay within StormeAI’s chat-only receptionist scope.</span>
+                <span>This agent will use the organization’s local default model and stay within StormeAI’s chat-only agent scope.</span>
               </div>
-              <button className="primary-button full-field" type="submit" disabled={saving}>{saving ? "Creating…" : "Create receptionist"}</button>
+              <button className="primary-button full-field" type="submit" disabled={saving}>{saving ? "Creating…" : "Create agent"}</button>
             </form>
           </div>
         </div>
@@ -1468,13 +1509,13 @@ function ChatsPage() {
   const [search, setSearch] = useState("");
 
   async function loadSessions(preferredSessionId?: string) {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) {
       setSessions([]);
       setMessages([]);
       setSelectedSessionId("");
       setLoading(false);
-      setStatus("Choose or create a clinic first.");
+      setStatus("Choose or create an organization first.");
       return;
     }
 
@@ -1482,7 +1523,7 @@ function ChatsPage() {
     const { data, error } = await supabase
       .from("chat_sessions")
       .select("id,status,channel,last_message_at,created_at,handoff_requested,emergency_flag")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(50);
@@ -1512,12 +1553,12 @@ function ChatsPage() {
   }
 
   async function loadMessages(sessionId: string) {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return;
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) return;
     const { data, error } = await supabase
       .from("chat_messages")
       .select("id,sender,body,created_at")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .eq("session_id", sessionId)
       .order("created_at", { ascending: true });
 
@@ -1630,7 +1671,7 @@ function KnowledgeBasePage() {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("Loading clinic knowledge…");
+  const [status, setStatus] = useState("Loading organization knowledge…");
   const [form, setForm] = useState({ title: "", sourceType: "faq", content: "", sourceUrl: "" });
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
@@ -1646,11 +1687,11 @@ function KnowledgeBasePage() {
   });
 
   async function loadDocuments() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) {
       setDocuments([]);
       setLoading(false);
-      setStatus("Choose or create a clinic first.");
+      setStatus("Choose or create an organization first.");
       return;
     }
 
@@ -1658,7 +1699,7 @@ function KnowledgeBasePage() {
     const { data, error } = await supabase
       .from("knowledge_documents")
       .select("id,title,source_type,content,status,updated_at,file_path")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .order("updated_at", { ascending: false });
 
     if (error) {
@@ -1676,7 +1717,7 @@ function KnowledgeBasePage() {
       updatedAt: row.updated_at,
       filePath: row.file_path || undefined,
     })));
-    setStatus(`${data?.length || 0} source${data?.length === 1 ? "" : "s"} ready for receptionist answers.`);
+    setStatus(`${data?.length || 0} source${data?.length === 1 ? "" : "s"} ready for agent answers.`);
     setLoading(false);
   }
 
@@ -1703,8 +1744,8 @@ function KnowledgeBasePage() {
 
   async function addDocument(event: FormEvent) {
     event.preventDefault();
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic before adding knowledge.");
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) return setStatus("Choose an organization before adding knowledge.");
     if (!form.title.trim()) return setStatus("Title is required.");
     if (!form.content.trim() && !attachmentFile && !existingAttachmentPath) return setStatus("Add content or attach a document.");
 
@@ -1712,7 +1753,7 @@ function KnowledgeBasePage() {
     let nextFilePath = existingAttachmentPath || "";
     if (attachmentFile) {
       const safeName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
-      const uploadPath = `${clinicId}/${crypto.randomUUID()}-${safeName}`;
+      const uploadPath = `${organizationId}/${crypto.randomUUID()}-${safeName}`;
       const { error: uploadError } = await supabase.storage.from("knowledge-documents").upload(uploadPath, attachmentFile, { upsert: false, contentType: attachmentFile.type || undefined });
       if (uploadError) {
         setStatus(`Attachment upload failed: ${uploadError.message}`);
@@ -1731,8 +1772,8 @@ function KnowledgeBasePage() {
       status: "approved",
     };
     const { error } = editingSourceId
-      ? await supabase.from("knowledge_documents").update(payload).eq("id", editingSourceId).eq("clinic_id", clinicId)
-      : await supabase.from("knowledge_documents").insert({ clinic_id: clinicId, ...payload });
+      ? await supabase.from("knowledge_documents").update(payload).eq("id", editingSourceId).eq("organization_id", organizationId)
+      : await supabase.from("knowledge_documents").insert({ organization_id: organizationId, ...payload });
 
     if (error) setStatus(`${editingSourceId ? "Update" : "Add"} source failed: ${error.message}`);
     else {
@@ -1758,8 +1799,8 @@ function KnowledgeBasePage() {
     if (!supabase) return;
     const confirmed = window.confirm(`Delete knowledge source “${source.title}”?`);
     if (!confirmed) return;
-    const clinicId = getWorkspaceSelection().clinicId;
-    const { error } = await supabase.from("knowledge_documents").delete().eq("id", source.id).eq("clinic_id", clinicId);
+    const organizationId = getWorkspaceSelection().organizationId;
+    const { error } = await supabase.from("knowledge_documents").delete().eq("id", source.id).eq("organization_id", organizationId);
     if (error) setStatus(`Delete failed: ${error.message}`);
     else {
       setStatus("Knowledge source deleted.");
@@ -1772,9 +1813,9 @@ function KnowledgeBasePage() {
       <div className="knowledge-hero-card">
         <div className="knowledge-hero-icon"><DatabaseZap size={34} /></div>
         <div>
-          <span className="badge teal"><Sparkles size={14} /> Approved clinic knowledge</span>
+          <span className="badge teal"><Sparkles size={14} /> Approved organization knowledge</span>
           <h1>Knowledge base</h1>
-          <p>Manage the verified FAQs, policies, services, prices, and notes your AI receptionist can use in patient chats.</p>
+          <p>Manage the verified FAQs, policies, services, prices, and notes your AI agent can use in patient chats.</p>
         </div>
         <button className="primary-button" type="button" onClick={openAddSource}><Plus size={17} /> Add source</button>
       </div>
@@ -1783,7 +1824,7 @@ function KnowledgeBasePage() {
         <div className="knowledge-summary-card primary">
           <p className="eyebrow">Answer safety</p>
           <h2>Approved sources only</h2>
-          <span>Receptionist answers clinic-specific questions from this directory and avoids diagnosis or prescriptions.</span>
+          <span>Agent answers organization-specific questions from this directory and avoids diagnosis or prescriptions.</span>
         </div>
         <div className="knowledge-metric-grid">
           <div><strong>{documents.length}</strong><span>Total sources</span></div>
@@ -1819,7 +1860,7 @@ function KnowledgeBasePage() {
         <aside className="knowledge-config-card">
           <div className="knowledge-config-icon"><ShieldCheck size={24} /></div>
           <h3>RAG configuration</h3>
-          <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active clinic knowledge"], ["Knowledge gaps", "Tell patient to contact clinic"]]} />
+          <ConfigList items={[["Answer mode", "Approved sources only"], ["Source types", "FAQ, service, policy, website, note"], ["Live chat lookup", "Uses active organization knowledge"], ["Knowledge gaps", "Tell patient to contact organization"]]} />
         </aside>
       </section>
       {createModalOpen && (
@@ -1839,7 +1880,7 @@ function KnowledgeBasePage() {
                 <option value="website">Website</option>
                 <option value="note">Note</option>
               </select>
-              <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved clinic answer/content here…" />
+              <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Paste approved organization answer/content here…" />
               <input value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} placeholder="Optional source URL" />
               <label className="knowledge-attachment-drop">Attachment<input type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)} /><span>{attachmentFile ? attachmentFile.name : existingAttachmentPath ? `Current: ${existingAttachmentPath.split("/").pop()}` : "Attach PDF, DOC, DOCX, TXT, MD, CSV, etc."}</span></label>
               <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving…" : editingSourceId ? "Update source" : "Add approved source"}</button>
@@ -1853,7 +1894,7 @@ function KnowledgeBasePage() {
 
 
 function BookingRequestPage() {
-  const { clinicId = "" } = useParams();
+  const { organizationId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
   const today = useMemo(() => new Date(), []);
@@ -1862,7 +1903,7 @@ function BookingRequestPage() {
   const [selectedTime, setSelectedTime] = useState("");
   const [step, setStep] = useState<"schedule" | "details">("schedule");
   const [form, setForm] = useState({ patientName: "", contact: "", service: "", note: "" });
-  const [status, setStatus] = useState("Choose your preferred date and time. Clinic staff will confirm availability.");
+  const [status, setStatus] = useState("Choose your preferred date and time. Organization staff will confirm availability.");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -1873,7 +1914,7 @@ function BookingRequestPage() {
 
   async function submitAppointment(event: FormEvent) {
     event.preventDefault();
-    if (!clinicId) return setStatus("Missing clinic ID.");
+    if (!organizationId) return setStatus("Missing organization ID.");
     if (!selectedTime) return setStatus("Please choose a time slot first.");
     if (!form.patientName.trim() || !form.contact.trim() || !form.service.trim()) {
       return setStatus("Please complete name, contact, and service requested.");
@@ -1887,12 +1928,12 @@ function BookingRequestPage() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": import.meta.env.DEV ? "text/plain;charset=UTF-8" : "application/json" },
-        body: JSON.stringify({ clinicId, sessionId, ...form, requestedAt }),
+        body: JSON.stringify({ organizationId, sessionId, ...form, requestedAt }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "Appointment request failed.");
       setSubmitted(true);
-      setStatus("Appointment request sent. Clinic staff will confirm availability.");
+      setStatus("Appointment request sent. Organization staff will confirm availability.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1906,21 +1947,21 @@ function BookingRequestPage() {
         <aside className="booking-summary-panel">
           {step === "details" && !submitted && <button className="booking-back-button" type="button" onClick={() => setStep("schedule")}>←</button>}
           <div className="booking-avatar"><span className="robot-hero-emoji" aria-hidden="true">🤖</span></div>
-          <p className="booking-host">StormeAI Receptionist</p>
-          <h1>Clinic appointment request</h1>
+          <p className="booking-host">StormeAI Agent</p>
+          <h1>Organization appointment request</h1>
           <div className="booking-meta-list">
             <div><CalendarCheck size={22} /><span>15 min request window</span></div>
             <div><MessageSquareText size={22} /><span>Started from AI chat session</span></div>
             {selectedTime && <div><CalendarCheck size={22} /><span>{selectedDateTimeLabel}</span></div>}
             <div><Globe2 size={22} /><span>Philippine Time</span></div>
           </div>
-          <p className="booking-summary-note">Choose a preferred slot and send your details. This does not confirm the appointment yet — clinic staff will review and contact you.</p>
+          <p className="booking-summary-note">Choose a preferred slot and send your details. This does not confirm the appointment yet — organization staff will review and contact you.</p>
           <div className="booking-footer-links"><span>StormeAI</span><span>No diagnosis · Staff confirmation required</span></div>
         </aside>
 
         <section className="booking-main-panel">
           {submitted ? (
-            <div className="booking-success-state"><Check size={42} /><p className="eyebrow">Request received</p><h2>Clinic staff will confirm your appointment.</h2><p>{status}</p></div>
+            <div className="booking-success-state"><Check size={42} /><p className="eyebrow">Request received</p><h2>Organization staff will confirm your appointment.</h2><p>{status}</p></div>
           ) : step === "schedule" ? (
             <>
               <div className="booking-section-heading"><p className="eyebrow">Select a Date & Time</p><h2>{formatMonthYear(calendarMonth)}</h2></div>
@@ -2045,11 +2086,11 @@ function AppointmentsPage() {
   });
 
   async function loadAppointments() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) {
       setAppointments([]);
       setLoading(false);
-      setStatus("Choose or create a clinic first.");
+      setStatus("Choose or create an organization first.");
       return;
     }
 
@@ -2057,7 +2098,7 @@ function AppointmentsPage() {
     const { data, error } = await supabase
       .from("appointments")
       .select("id,status,requested_start_at,scheduled_start_at,patient_note,staff_note,source,patients(full_name,email,phone),services(name)")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -2086,14 +2127,14 @@ function AppointmentsPage() {
 
   async function createAppointment(event: FormEvent) {
     event.preventDefault();
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic before creating appointments.");
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) return setStatus("Choose an organization before creating appointments.");
     if (!form.patientName.trim() || !form.service.trim()) return setStatus("Patient name and service are required.");
 
     setSaving(true);
     const contact = form.contact.trim();
     const { data: patient, error: patientError } = await supabase.from("patients").insert({
-      clinic_id: clinicId,
+      organization_id: organizationId,
       full_name: form.patientName.trim(),
       email: contact.includes("@") ? contact : null,
       phone: contact && !contact.includes("@") ? contact : null,
@@ -2106,7 +2147,7 @@ function AppointmentsPage() {
     }
 
     const { error } = await supabase.from("appointments").insert({
-      clinic_id: clinicId,
+      organization_id: organizationId,
       patient_id: patient.id,
       status: "requested",
       requested_start_at: form.requestedAt ? new Date(form.requestedAt).toISOString() : null,
@@ -2138,7 +2179,7 @@ function AppointmentsPage() {
         <div>
           <span className="badge teal"><Sparkles size={14} /> Booking request inbox</span>
           <h1>Appointments</h1>
-          <p>Review patient booking requests, confirm schedules, and keep every receptionist-created appointment organized.</p>
+          <p>Review patient booking requests, confirm schedules, and keep every agent-created appointment organized.</p>
         </div>
         <button className="primary-button" type="button" onClick={() => setCreateModalOpen(true)}><Plus size={17} /> Create request</button>
       </div>
@@ -2225,21 +2266,21 @@ function MarketingPage() {
   const [campaign, setCampaign] = useState({
     channel: "email",
     audience: "all",
-    fromName: "StormeAI Clinic",
+    fromName: "StormeAI Organization",
     replyTo: "",
-    subject: "Clinic promo",
-    message: "Hi! We have a new clinic promo/notice. Reply here or contact the clinic to learn more.",
+    subject: "Organization promo",
+    message: "Hi! We have a new organization promo/notice. Reply here or contact the organization to learn more.",
     includeFooter: true,
   });
   const [attachments, setAttachments] = useState<MarketingAttachment[]>([]);
 
   async function loadContacts() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) {
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) {
       setContacts([]);
       setSelectedIds([]);
       setLoading(false);
-      setStatus("Choose a clinic first.");
+      setStatus("Choose an organization first.");
       return;
     }
 
@@ -2247,7 +2288,7 @@ function MarketingPage() {
     const { data, error } = await supabase
       .from("appointments")
       .select("id,patient_note,created_at,requested_start_at,scheduled_start_at,patients(id,full_name,email,phone)")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -2317,18 +2358,18 @@ function MarketingPage() {
   }
 
   async function sendEmailCampaign() {
-    const clinicId = getWorkspaceSelection().clinicId;
-    if (!supabase || !clinicId) return setStatus("Choose a clinic first.");
+    const organizationId = getWorkspaceSelection().organizationId;
+    if (!supabase || !organizationId) return setStatus("Choose an organization first.");
     if (!selectedEmailContacts.length) return setStatus("Select at least one patient with an email address.");
     if (!campaign.subject.trim() || !campaign.message.trim()) return setStatus("Subject and message are required.");
 
     setSending(true);
     setStatus("Sending campaign with Resend…");
     const payload = {
-      clinicId,
+      organizationId,
       to: selectedEmailContacts.map((contact) => contact.email),
       subject: campaign.subject,
-      body: campaign.includeFooter ? `${campaign.message}\n\n— Sent by the clinic via StormeAI` : campaign.message,
+      body: campaign.includeFooter ? `${campaign.message}\n\n— Sent by the organization via StormeAI` : campaign.message,
       fromName: campaign.fromName,
       replyTo: campaign.replyTo || undefined,
       attachments,
@@ -2372,7 +2413,7 @@ function MarketingPage() {
         <div className="marketing-summary-card-modern primary">
           <p className="eyebrow">Campaign workflow</p>
           <h2>Email via Resend</h2>
-          <span>Send promos, clinic notices, and reminders to previous patients using verified email contacts and Resend delivery.</span>
+          <span>Send promos, organization notices, and reminders to previous patients using verified email contacts and Resend delivery.</span>
         </div>
         <div className="marketing-metric-grid-modern">
           <div><strong>{contacts.length}</strong><span>Total contacts</span></div>
@@ -2438,17 +2479,17 @@ function MarketingPage() {
                   <div className="campaign-grid modern">
                     <label>Channel<select value={campaign.channel} onChange={(event) => setCampaign({ ...campaign, channel: event.target.value })}><option value="email">Email via Resend</option></select></label>
                     <label>Audience<select value={campaign.audience} onChange={(event) => setCampaign({ ...campaign, audience: event.target.value })}><option value="all">All selected patients</option><option value="email-only">Patients with email</option></select></label>
-                    <label>From name<input value={campaign.fromName} onChange={(event) => setCampaign({ ...campaign, fromName: event.target.value })} placeholder="Clinic name" /></label>
-                    <label>Reply-to email<input value={campaign.replyTo} onChange={(event) => setCampaign({ ...campaign, replyTo: event.target.value })} placeholder="clinic@example.com" /></label>
+                    <label>From name<input value={campaign.fromName} onChange={(event) => setCampaign({ ...campaign, fromName: event.target.value })} placeholder="Organization name" /></label>
+                    <label>Reply-to email<input value={campaign.replyTo} onChange={(event) => setCampaign({ ...campaign, replyTo: event.target.value })} placeholder="organization@example.com" /></label>
                   </div>
                 </div>
 
                 <div className="campaign-compose-card">
-                  <div className="campaign-card-heading"><span>2</span><div><strong>Message content</strong><p>Write a clear clinic-approved email.</p></div></div>
+                  <div className="campaign-card-heading"><span>2</span><div><strong>Message content</strong><p>Write a clear organization-approved email.</p></div></div>
                   <label>Subject<input value={campaign.subject} onChange={(event) => setCampaign({ ...campaign, subject: event.target.value })} placeholder="Summer cleaning discount" /></label>
-                  <label>Body<textarea value={campaign.message} onChange={(event) => setCampaign({ ...campaign, message: event.target.value })} placeholder="Write your promo, discount, or clinic notice…" /></label>
+                  <label>Body<textarea value={campaign.message} onChange={(event) => setCampaign({ ...campaign, message: event.target.value })} placeholder="Write your promo, discount, or organization notice…" /></label>
                   <label className="attachment-drop modern-drop"><input type="file" multiple onChange={(event) => void loadAttachments(event.target.files)} /><span>{attachments.length ? attachments.map((file) => file.filename).join(", ") : "Drop or choose promo image/PDF · optional up to 5 files"}</span></label>
-                  <label className="checkbox-row modern-checkbox"><input type="checkbox" checked={campaign.includeFooter} onChange={(event) => setCampaign({ ...campaign, includeFooter: event.target.checked })} /> Include StormeAI clinic footer</label>
+                  <label className="checkbox-row modern-checkbox"><input type="checkbox" checked={campaign.includeFooter} onChange={(event) => setCampaign({ ...campaign, includeFooter: event.target.checked })} /> Include StormeAI organization footer</label>
                 </div>
               </section>
 
@@ -2458,10 +2499,10 @@ function MarketingPage() {
                   <strong>{selectedEmailContacts.length} recipients</strong>
                 </div>
                 <div className="campaign-email-preview">
-                  <div><span>From</span><strong>{campaign.fromName || "Clinic"}</strong></div>
+                  <div><span>From</span><strong>{campaign.fromName || "Organization"}</strong></div>
                   <div><span>Subject</span><strong>{campaign.subject || "Untitled campaign"}</strong></div>
                   <p>{campaign.message}</p>
-                  {campaign.includeFooter && <small>— Sent by the clinic via StormeAI</small>}
+                  {campaign.includeFooter && <small>— Sent by the organization via StormeAI</small>}
                 </div>
                 <div className="campaign-send-card">
                   <ConfigList items={[["Provider", "Resend"], ["Recipients", String(selectedEmailContacts.length)], ["Attachments", `${attachments.length}/5`]]} />
@@ -2487,13 +2528,13 @@ function fileToBase64(file: File) {
 
 
 function IntegrationsPage() {
-  const [selectedClinicId, setSelectedClinicId] = useState(getWorkspaceSelection().clinicId || "");
-  const [selectedWidgetReceptionistId, setSelectedWidgetReceptionistId] = useState(getWorkspaceSelection().receptionistId || "");
-  const [widgetReceptionists, setWidgetReceptionists] = useState<ReceptionistOption[]>([]);
-  const [integrationStatus, setIntegrationStatus] = useState("Loading AI receptionists…");
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState(getWorkspaceSelection().organizationId || "");
+  const [selectedWidgetAgentId, setSelectedWidgetAgentId] = useState(getWorkspaceSelection().agentId || "");
+  const [widgetAgents, setWidgetAgents] = useState<AgentOption[]>([]);
+  const [integrationStatus, setIntegrationStatus] = useState("Loading AI agents…");
   const [scriptCopied, setScriptCopied] = useState(false);
-  const clinicId = selectedClinicId || "CLINIC_UUID";
-  const receptionistId = selectedWidgetReceptionistId || "OPTIONAL_RECEPTIONIST_UUID";
+  const organizationId = selectedOrganizationId || "ORGANIZATION_UUID";
+  const agentId = selectedWidgetAgentId || "OPTIONAL_AGENT_UUID";
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://YOUR_SUPABASE_PROJECT.supabase.co";
   const widgetUrl = `${window.location.origin}/stormeai-widget.js`;
   const localChatUrl = `${window.location.origin}/stormeai-local-chat`;
@@ -2504,38 +2545,38 @@ function IntegrationsPage() {
   async
   src="${widgetUrl}"
   data-api-url="${supabaseUrl}"${localWidgetAttrs}
-  data-clinic-id="${clinicId}"
-  data-receptionist-id="${receptionistId}"
-  data-title="Clinic chat"
-  data-greeting="Hi! I’m your clinic AI receptionist. How can I help?">
+  data-organization-id="${organizationId}"
+  data-agent-id="${agentId}"
+  data-title="Organization chat"
+  data-greeting="Hi! I’m your organization AI agent. How can I help?">
 </script>`;
-  const activeWidgetReceptionist = widgetReceptionists.find((item) => item.receptionistId === selectedWidgetReceptionistId);
+  const activeWidgetAgent = widgetAgents.find((item) => item.agentId === selectedWidgetAgentId);
 
-  async function loadWidgetReceptionists() {
+  async function loadWidgetAgents() {
     const selection = getWorkspaceSelection();
-    const nextClinicId = selection.clinicId || "";
-    setSelectedClinicId(nextClinicId);
-    if (!nextClinicId) {
-      setWidgetReceptionists([]);
-      setSelectedWidgetReceptionistId("");
-      setIntegrationStatus("Choose a clinic first, then select an AI receptionist for the widget.");
+    const nextOrganizationId = selection.organizationId || "";
+    setSelectedOrganizationId(nextOrganizationId);
+    if (!nextOrganizationId) {
+      setWidgetAgents([]);
+      setSelectedWidgetAgentId("");
+      setIntegrationStatus("Choose an organization first, then select an AI agent for the widget.");
       return;
     }
     try {
-      const items = await listReceptionists(nextClinicId);
-      setWidgetReceptionists(items);
-      const preferredId = selection.receptionistId && items.some((item) => item.receptionistId === selection.receptionistId) ? selection.receptionistId : items[0]?.receptionistId || "";
-      setSelectedWidgetReceptionistId(preferredId);
-      if (preferredId) persistWorkspaceSelection({ clinicId: nextClinicId, receptionistId: preferredId });
-      setIntegrationStatus(items.length ? `${items.length} AI receptionist${items.length === 1 ? "" : "s"} available for this widget.` : "No AI receptionists found for this clinic yet.");
+      const items = await listAgents(nextOrganizationId);
+      setWidgetAgents(items);
+      const preferredId = selection.agentId && items.some((item) => item.agentId === selection.agentId) ? selection.agentId : items[0]?.agentId || "";
+      setSelectedWidgetAgentId(preferredId);
+      if (preferredId) persistWorkspaceSelection({ organizationId: nextOrganizationId, agentId: preferredId });
+      setIntegrationStatus(items.length ? `${items.length} AI agent${items.length === 1 ? "" : "s"} available for this widget.` : "No AI agents found for this organization yet.");
     } catch (error) {
-      setIntegrationStatus(error instanceof Error ? error.message : "Failed to load AI receptionists.");
+      setIntegrationStatus(error instanceof Error ? error.message : "Failed to load AI agents.");
     }
   }
 
   useEffect(() => {
-    void loadWidgetReceptionists();
-    return subscribeWorkspaceSelection(() => void loadWidgetReceptionists());
+    void loadWidgetAgents();
+    return subscribeWorkspaceSelection(() => void loadWidgetAgents());
   }, []);
 
   async function copyWidgetScript() {
@@ -2544,9 +2585,9 @@ function IntegrationsPage() {
     window.setTimeout(() => setScriptCopied(false), 1600);
   }
 
-  function chooseWidgetReceptionist(receptionistId: string) {
-    setSelectedWidgetReceptionistId(receptionistId);
-    if (selectedClinicId) persistWorkspaceSelection({ clinicId: selectedClinicId, receptionistId });
+  function chooseWidgetAgent(agentId: string) {
+    setSelectedWidgetAgentId(agentId);
+    if (selectedOrganizationId) persistWorkspaceSelection({ organizationId: selectedOrganizationId, agentId });
   }
 
   return (
@@ -2556,7 +2597,7 @@ function IntegrationsPage() {
         <div>
           <span className="badge teal"><Sparkles size={14} /> Patient channel setup</span>
           <h1>Integrations</h1>
-          <p>Connect StormeAI to clinic websites and choose which AI Receptionist powers each embedded widget.</p>
+          <p>Connect StormeAI to organization websites and choose which AI Agent powers each embedded widget.</p>
         </div>
         <button className={`primary-button copy-script-button ${scriptCopied ? "copied" : ""}`} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied!" : "Copy widget script"}</button>
       </div>
@@ -2565,13 +2606,13 @@ function IntegrationsPage() {
         <div className="integrations-summary-card primary">
           <p className="eyebrow">Primary channel</p>
           <h2>Website chat widget</h2>
-          <span>Pick any AI Receptionist for this clinic, then copy the widget script. The selected receptionist ID is included in the embed.</span>
+          <span>Pick any AI Agent for this organization, then copy the widget script. The selected agent ID is included in the embed.</span>
         </div>
         <div className="integrations-metric-grid">
           <div><strong>1</strong><span>Channel listed</span></div>
-          <div><strong>{widgetReceptionists.length}</strong><span>Receptionists</span></div>
+          <div><strong>{widgetAgents.length}</strong><span>Agents</span></div>
           <div><strong>{import.meta.env.DEV ? "Local" : "Cloud"}</strong><span>Widget mode</span></div>
-          <div><strong>Chat</strong><span>Receptionist scope</span></div>
+          <div><strong>Chat</strong><span>Agent scope</span></div>
         </div>
       </section>
 
@@ -2584,19 +2625,19 @@ function IntegrationsPage() {
               <span>{integrationStatus}</span>
             </div>
           </div>
-          <div className="widget-receptionist-picker">
+          <div className="widget-agent-picker">
             <div>
-              <p className="eyebrow">Widget AI Receptionist</p>
-              <h3>{activeWidgetReceptionist?.name || "Select receptionist"}</h3>
-              <span>This receptionist will answer chats from the copied website widget.</span>
+              <p className="eyebrow">Widget AI Agent</p>
+              <h3>{activeWidgetAgent?.name || "Select agent"}</h3>
+              <span>This agent will answer chats from the copied website widget.</span>
             </div>
-            <label>Choose receptionist<select value={selectedWidgetReceptionistId} onChange={(event) => chooseWidgetReceptionist(event.target.value)} disabled={!widgetReceptionists.length}>{widgetReceptionists.length ? widgetReceptionists.map((item) => <option key={item.receptionistId} value={item.receptionistId}>{item.name}</option>) : <option value="">No receptionists available</option>}</select></label>
+            <label>Choose agent<select value={selectedWidgetAgentId} onChange={(event) => chooseWidgetAgent(event.target.value)} disabled={!widgetAgents.length}>{widgetAgents.length ? widgetAgents.map((item) => <option key={item.agentId} value={item.agentId}>{item.name}</option>) : <option value="">No agents available</option>}</select></label>
           </div>
           <div className="integrations-table-head"><span>Channel</span><span>Status</span><span>Setup</span><span>Action</span></div>
           <div className="integrations-table-row active">
-            <div className="integrations-table-channel"><span className="integrations-channel-avatar"><Globe2 size={20} /></span><div><strong>Website chat widget</strong><span>Embed on the clinic website before the closing body tag.</span></div></div>
+            <div className="integrations-table-channel"><span className="integrations-channel-avatar"><Globe2 size={20} /></span><div><strong>Website chat widget</strong><span>Embed on the organization website before the closing body tag.</span></div></div>
             <div><span className="integration-status-pill ready">Ready</span></div>
-            <div className="integrations-table-setup"><span>Clinic: {clinicId}</span><span>Receptionist: {activeWidgetReceptionist?.name || receptionistId}</span></div>
+            <div className="integrations-table-setup"><span>Organization: {organizationId}</span><span>Agent: {activeWidgetAgent?.name || agentId}</span></div>
             <div className="integrations-table-actions"><button className={scriptCopied ? "copied" : ""} type="button" onClick={() => void copyWidgetScript()}>{scriptCopied ? "Copied" : "Copy script"}</button></div>
           </div>
 
@@ -2605,7 +2646,7 @@ function IntegrationsPage() {
         <aside className="integrations-config-card">
           <div className="integrations-config-icon"><Globe2 size={24} /></div>
           <h3>Website widget</h3>
-          <ConfigList items={[["Clinic", clinicId], ["Receptionist", activeWidgetReceptionist?.name || receptionistId], ["Receptionist ID", receptionistId], ["API URL", supabaseUrl], ["Local gateway", import.meta.env.DEV ? "Enabled" : "Production"]]} />
+          <ConfigList items={[["Organization", organizationId], ["Agent", activeWidgetAgent?.name || agentId], ["Agent ID", agentId], ["API URL", supabaseUrl], ["Local gateway", import.meta.env.DEV ? "Enabled" : "Production"]]} />
         </aside>
       </section>
 
@@ -2634,7 +2675,7 @@ function Panel({ title, subtitle, icon: Icon, children }: { title: string; subti
 function ChatPreview() {
   return (
     <div className="chat-preview">
-      <div className="chat-header"><div className="avatar robot-chat-avatar"><span aria-hidden="true">🤖</span></div><div><strong>AI Receptionist</strong><span>StormeAI receptionist</span></div></div>
+      <div className="chat-header"><div className="avatar robot-chat-avatar"><span aria-hidden="true">🤖</span></div><div><strong>AI Agent</strong><span>StormeAI agent</span></div></div>
       <div className="bubble patient">Do you offer dental cleaning tomorrow?</div>
       <div className="bubble ai">Yes. Dental cleaning is available. Would you like me to collect your preferred time?</div>
       <div className="quick-replies"><span>Morning</span><span>Afternoon</span><span>Ask staff</span></div>

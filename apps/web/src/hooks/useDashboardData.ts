@@ -10,7 +10,7 @@ export type DashboardMetric = {
 export type DashboardData = {
   loading: boolean;
   error?: string;
-  clinicName: string;
+  organizationName: string;
   metrics: DashboardMetric[];
   recentAppointments: { patient: string; service: string; status: string; time: string }[];
   knowledgeGaps: number;
@@ -18,7 +18,7 @@ export type DashboardData = {
 
 const fallbackData: DashboardData = {
   loading: false,
-  clinicName: "Storme Dental Clinic",
+  organizationName: "Storme Dental Organization",
   metrics: [
     { label: "Chats today", value: "48", delta: "demo data" },
     { label: "Booking requests", value: "12", delta: "demo data" },
@@ -29,11 +29,11 @@ const fallbackData: DashboardData = {
   knowledgeGaps: 7,
 };
 
-export function useDashboardData(clinicId?: string): DashboardData {
-  const [data, setData] = useState<DashboardData>({ ...fallbackData, loading: Boolean(clinicId) });
+export function useDashboardData(organizationId?: string): DashboardData {
+  const [data, setData] = useState<DashboardData>({ ...fallbackData, loading: Boolean(organizationId) });
 
   useEffect(() => {
-    if (!clinicId || !supabase) {
+    if (!organizationId || !supabase) {
       setData({ ...fallbackData, loading: false, error: !supabase ? "Supabase not configured; showing demo data." : undefined });
       return;
     }
@@ -42,23 +42,23 @@ export function useDashboardData(clinicId?: string): DashboardData {
     let cancelled = false;
     async function load() {
       setData((current) => ({ ...current, loading: true }));
-      const [clinicResult, appointmentsResult, chatsResult, handoffsResult, gapsResult] = await Promise.all([
-        client.from("clinics").select("name").eq("id", clinicId).single(),
-        client.from("appointments").select("status, scheduled_start_at, requested_start_at, patients(full_name), services(name)").eq("clinic_id", clinicId).limit(5),
-        client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-        client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("handoff_requested", true),
-        client.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).eq("status", "draft"),
+      const [organizationResult, appointmentsResult, chatsResult, handoffsResult, gapsResult] = await Promise.all([
+        client.from("organizations").select("name").eq("id", organizationId).single(),
+        client.from("appointments").select("status, scheduled_start_at, requested_start_at, patients(full_name), services(name)").eq("organization_id", organizationId).limit(5),
+        client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
+        client.from("chat_sessions").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("handoff_requested", true),
+        client.from("knowledge_documents").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("status", "draft"),
       ]);
 
       if (cancelled) return;
-      if (clinicResult.error) {
-        setData({ ...fallbackData, loading: false, error: clinicResult.error.message });
+      if (organizationResult.error) {
+        setData({ ...fallbackData, loading: false, error: organizationResult.error.message });
         return;
       }
 
       setData({
         loading: false,
-        clinicName: clinicResult.data?.name || fallbackData.clinicName,
+        organizationName: organizationResult.data?.name || fallbackData.organizationName,
         metrics: [
           { label: "Chats", value: String(chatsResult.count || 0), delta: "all time" },
           { label: "Booking requests", value: String(appointmentsResult.data?.length || 0), delta: "latest records" },
@@ -77,7 +77,7 @@ export function useDashboardData(clinicId?: string): DashboardData {
 
     void load();
     return () => { cancelled = true; };
-  }, [clinicId]);
+  }, [organizationId]);
 
   return useMemo(() => data, [data]);
 }

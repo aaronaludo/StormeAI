@@ -2,7 +2,7 @@
   "name": "stormeai",
   "version": "0.1.0",
   "private": true,
-  "description": "StormeAI - chat-only AI receptionist SaaS for clinics.",
+  "description": "StormeAI - chat-only AI agent SaaS for organizations.",
   "type": "module",
   "workspaces": [
     "apps/*",

@@ -1,8 +1,8 @@
 # StormeAI
 
-StormeAI is a **chat-only AI receptionist SaaS for clinics**.
+StormeAI is a **chat-only AI agent SaaS for organizations**.
 
-It helps clinics answer patient questions, collect appointment details, schedule appointments, and route complex cases to staff through chat — without acting as a doctor or diagnosis tool.
+It helps organizations answer patient questions, collect appointment details, schedule appointments, and route complex cases to staff through chat — without acting as a doctor or diagnosis tool.
 
 ## Stack
 

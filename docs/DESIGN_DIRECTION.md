@@ -1,6 +1,6 @@
 # StormeAI Design Direction
 
-StormeAI should feel like a calm, trustworthy clinic operations platform — modern SaaS, but softer and safer than a generic AI tool.
+StormeAI should feel like a calm, trustworthy organization operations platform — modern SaaS, but softer and safer than a generic AI tool.
 
 ## Product personality
 
@@ -11,13 +11,13 @@ StormeAI should feel like a calm, trustworthy clinic operations platform — mod
 - Healthcare-aware
 - Efficient, but not cold
 
-StormeAI is a **chat-only AI receptionist for clinics**, so the UI should make clinics feel that the system is safe, controlled, and easy to supervise.
+StormeAI is a **chat-only AI agent for organizations**, so the UI should make organizations feel that the system is safe, controlled, and easy to supervise.
 
 ## Visual direction
 
 ## Brand feel
 
-**Theme:** calm clinical intelligence
+**Theme:** calm operational intelligence
 
 Use a clean healthcare SaaS look:
 
@@ -39,7 +39,7 @@ Avoid:
 ## Suggested color palette
 
 ```txt
-Primary: #2563EB   // clinical blue
+Primary: #2563EB   // trusted blue
 Accent:  #14B8A6   // calm teal
 Success: #16A34A
 Warning: #F59E0B
@@ -63,27 +63,27 @@ Style:
 
 - clear headings
 - readable body copy
-- avoid tiny text in clinical workflows
+- avoid tiny text in healthcare workflows
 - use medium weights for navigation and card titles
 
 ## Core screens to design in Figma
 
 ### 1. Marketing landing page
 
-Purpose: explain StormeAI to clinic owners.
+Purpose: explain StormeAI to organization owners.
 
 Sections:
 
-- Hero: "A chat-only AI receptionist for clinics"
+- Hero: "A chat-only AI agent for organizations"
 - Benefits: instant replies, appointment capture, fewer repetitive messages
 - How it works
-- Clinic use cases
+- Organization use cases
 - Safety: not diagnosis, not prescription
 - Pricing/manual billing CTA
 
-### 2. Clinic dashboard
+### 2. Organization dashboard
 
-Purpose: give clinic admins a quick operational view.
+Purpose: give organization admins a quick operational view.
 
 Widgets:
 
@@ -92,15 +92,15 @@ Widgets:
 - upcoming appointments
 - unanswered questions
 - handoff requests
-- receptionist status
+- agent status
 
-### 3. AI receptionist settings
+### 3. AI agent settings
 
-Purpose: configure the receptionist.
+Purpose: configure the agent.
 
 Fields:
 
-- receptionist name
+- agent name
 - tone/personality
 - language preference
 - system prompt preview
@@ -163,7 +163,7 @@ React Flow nodes:
 ## UX principles
 
 1. **Always show control**
-   - Clinic admins should know what the AI can and cannot do.
+   - Organization admins should know what the AI can and cannot do.
 
 2. **Appointment-first, not diagnosis-first**
    - The UI should guide users toward booking or staff handoff, not medical advice.
@@ -171,8 +171,8 @@ React Flow nodes:
 3. **Make safety visible**
    - Emergency handling and no-diagnosis rules should be obvious in settings.
 
-4. **Reduce receptionist workload**
-   - Design around repetitive clinic admin tasks.
+4. **Reduce agent workload**
+   - Design around repetitive organization admin tasks.
 
 5. **Keep patient chat simple**
    - No complex menus. Chat should feel quick and helpful.
@@ -198,7 +198,7 @@ StormeAI Design System
 ├─ Marketing
 │  └─ Landing Page
 ├─ Dashboard
-├─ AI Receptionist Settings
+├─ AI Agent Settings
 ├─ Knowledge Base
 ├─ Appointments
 ├─ Chat Widget
@@ -210,8 +210,8 @@ StormeAI Design System
 Create these 5 Figma frames first:
 
 1. Landing page hero
-2. Clinic dashboard overview
-3. AI receptionist settings
+2. Organization dashboard overview
+3. AI agent settings
 4. Patient chat widget
 5. Appointment booking chat flow
 

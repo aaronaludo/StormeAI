@@ -21,7 +21,7 @@ Deno.serve(async (request) => {
   try {
     const body = await request.json();
     const result = await createAppointmentRequest({
-      clinicId: String(body.clinicId || body.clinic_id || ""),
+      organizationId: String(body.organizationId || body.organization_id || ""),
       sessionId: body.sessionId || body.session_id || undefined,
       patientName: String(body.patientName || ""),
       contact: String(body.contact || ""),
@@ -37,15 +37,15 @@ Deno.serve(async (request) => {
   }
 });
 
-async function createAppointmentRequest(input: { clinicId: string; sessionId?: string; patientName: string; contact: string; service: string; requestedAt: string; note?: string; origin?: string; userAgent?: string }) {
-  if (!input.clinicId) throw new Error("clinicId is required.");
+async function createAppointmentRequest(input: { organizationId: string; sessionId?: string; patientName: string; contact: string; service: string; requestedAt: string; note?: string; origin?: string; userAgent?: string }) {
+  if (!input.organizationId) throw new Error("organizationId is required.");
   if (!input.patientName.trim() || !input.contact.trim() || !input.service.trim() || !input.requestedAt.trim()) throw new Error("Patient name, contact, service, and preferred date/time are required.");
 
   const requestedStartAt = new Date(input.requestedAt);
   if (Number.isNaN(requestedStartAt.getTime())) throw new Error("Preferred date/time is invalid.");
 
   const { data: patient, error: patientError } = await supabase.from("patients").insert({
-    clinic_id: input.clinicId,
+    organization_id: input.organizationId,
     full_name: input.patientName.trim(),
     email: input.contact.includes("@") ? input.contact.trim() : null,
     phone: input.contact.includes("@") ? null : input.contact.trim(),
@@ -62,7 +62,7 @@ async function createAppointmentRequest(input: { clinicId: string; sessionId?: s
   ].filter(Boolean).join("\n");
 
   const { data: appointment, error } = await supabase.from("appointments").insert({
-    clinic_id: input.clinicId,
+    organization_id: input.organizationId,
     patient_id: patient.id,
     status: "requested",
     requested_start_at: requestedStartAt.toISOString(),
@@ -73,7 +73,7 @@ async function createAppointmentRequest(input: { clinicId: string; sessionId?: s
 
   if (input.sessionId) {
     await supabase.from("chat_messages").insert({
-      clinic_id: input.clinicId,
+      organization_id: input.organizationId,
       session_id: input.sessionId,
       sender: "system",
       body: `Appointment request submitted from booking page for ${input.patientName.trim()}.`,

@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 
 type AttachmentPayload = { filename: string; content: string; contentType?: string };
 type MarketingEmailPayload = {
-  clinicId: string;
+  organizationId: string;
   to: string[];
   subject: string;
   body: string;
@@ -40,8 +40,8 @@ Deno.serve(async (request) => {
     if (userError || !userData.user) return json({ error: "Authentication required" }, 401);
 
     const payload = (await request.json()) as MarketingEmailPayload;
-    const clinicId = String(payload.clinicId || "");
-    if (!clinicId) return json({ error: "clinicId is required" }, 400);
+    const organizationId = String(payload.organizationId || "");
+    if (!organizationId) return json({ error: "organizationId is required" }, 400);
     if (!payload.subject?.trim()) return json({ error: "Subject is required" }, 400);
     if (!payload.body?.trim()) return json({ error: "Body is required" }, 400);
 
@@ -50,19 +50,19 @@ Deno.serve(async (request) => {
     if (recipients.length > 100) return json({ error: "Send at most 100 recipients per campaign" }, 400);
 
     const { data: member, error: memberError } = await serviceSupabase
-      .from("clinic_members")
+      .from("organization_members")
       .select("id,role")
-      .eq("clinic_id", clinicId)
+      .eq("organization_id", organizationId)
       .eq("user_id", userData.user.id)
       .limit(1)
       .maybeSingle();
     if (memberError) throw new Error(memberError.message);
-    if (!member) return json({ error: "You are not a member of this clinic" }, 403);
+    if (!member) return json({ error: "You are not a member of this organization" }, 403);
 
-    const { data: clinic } = await serviceSupabase.from("clinics").select("name").eq("id", clinicId).maybeSingle();
+    const { data: organization } = await serviceSupabase.from("organizations").select("name").eq("id", organizationId).maybeSingle();
     const subject = payload.subject.trim();
     const text = payload.body.trim();
-    const html = renderMarketingEmail({ clinicName: clinic?.name || "Clinic", body: text });
+    const html = renderMarketingEmail({ organizationName: organization?.name || "Organization", body: text });
     const attachments = (payload.attachments || []).slice(0, 5).map((attachment) => ({
       filename: attachment.filename,
       content: attachment.content,
@@ -92,18 +92,18 @@ Deno.serve(async (request) => {
   }
 });
 
-function renderMarketingEmail(input: { clinicName: string; body: string }) {
+function renderMarketingEmail(input: { organizationName: string; body: string }) {
   const escapedBody = escapeHtml(input.body).replace(/\n/g, "<br />");
   return `
     <div style="margin:0;background:#f8fafc;padding:28px;font-family:Inter,Arial,sans-serif;color:#0f172a">
       <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;overflow:hidden">
         <div style="padding:24px 28px;background:linear-gradient(135deg,#2563eb,#14b8a6);color:white">
-          <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.86">Clinic notice</div>
-          <h1 style="margin:8px 0 0;font-size:26px;line-height:1.15">${escapeHtml(input.clinicName)}</h1>
+          <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.86">Organization notice</div>
+          <h1 style="margin:8px 0 0;font-size:26px;line-height:1.15">${escapeHtml(input.organizationName)}</h1>
         </div>
         <div style="padding:28px;font-size:16px;line-height:1.65">${escapedBody}</div>
         <div style="padding:18px 28px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5">
-          You are receiving this because you shared your contact details with the clinic. StormeAI is a clinic receptionist tool and does not provide medical advice.
+          You are receiving this because you shared your contact details with the organization. StormeAI is an organization agent tool and does not provide medical advice.
         </div>
       </div>
     </div>`;

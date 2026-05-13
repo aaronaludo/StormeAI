@@ -4,11 +4,11 @@ Research date: 2026-05-08
 
 ## Goal
 
-Find design inspiration for StormeAI: a modern, user-friendly, configuration-heavy, chat-only AI receptionist SaaS for clinics.
+Find design inspiration for StormeAI: a modern, user-friendly, configuration-heavy, chat-only AI agent SaaS for organizations.
 
 StormeAI should combine three product styles:
 
-1. Healthcare/clinic trust
+1. Healthcare/organization trust
 2. Modern AI SaaS dashboard clarity
 3. Appointment/chat workflow usability
 
@@ -24,17 +24,17 @@ Link: https://www.eleken.co/blog-posts/user-interface-design-for-healthcare-appl
 
 Useful takeaways for StormeAI:
 
-- Healthcare users are not just one user type. StormeAI has clinic owners, receptionists, staff/doctors, and patients.
+- Healthcare users are not just one user type. StormeAI has organization owners, agents, staff/doctors, and patients.
 - Interfaces should reduce cognitive load because healthcare/admin workflows can be stressful.
 - Trust matters more than flashy visuals.
-- Role-specific views are important: clinic admin dashboard vs patient chat widget should feel different.
+- Role-specific views are important: organization admin dashboard vs patient chat widget should feel different.
 - Design should be clear, safe, and structured because healthcare-adjacent software has higher risk.
 
 Apply to StormeAI:
 
 - Use calm colors, readable layouts, and clear status labels.
 - Keep safety controls visible.
-- Separate patient-facing chat from clinic admin configuration.
+- Separate patient-facing chat from organization admin configuration.
 - Avoid visuals that make the AI look like a doctor.
 
 ---
@@ -61,15 +61,15 @@ Apply to StormeAI:
 
 ---
 
-## 3. Clinic website/user experience examples
+## 3. Organization website/user experience examples
 
-Source: Subframe — 25 Clinic Website Design Examples
+Source: Subframe — 25 Organization Website Design Examples
 
-Link: https://www.subframe.com/tips/clinic-website-design-examples
+Link: https://www.subframe.com/tips/organization-website-design-examples
 
 Useful takeaways for StormeAI:
 
-- Clinic websites should help patients quickly find services, hours, and appointment booking.
+- Organization websites should help patients quickly find services, hours, and appointment booking.
 - Calming color palettes and clean navigation improve patient trust.
 - Appointment booking should be easy and visible.
 - Patient-facing experiences need responsive/mobile-friendly design.
@@ -78,7 +78,7 @@ Apply to StormeAI:
 
 - Patient chat widget should be simple, friendly, and mobile-first.
 - Chat should offer service choices and appointment options quickly.
-- Use soft clinical colors instead of heavy enterprise dashboards.
+- Use soft healthcare colors instead of heavy enterprise dashboards.
 - Keep emergency/safety messaging clear and visible.
 
 ---
@@ -119,9 +119,9 @@ Useful takeaways for StormeAI:
 
 Apply to StormeAI:
 
-- Create an AI Receptionist Command Center.
+- Create an AI Agent Command Center.
 - Show current model: Ollama qwen2.5:7b, Claude/OpenAI fallback.
-- Give clinics simple controls for tone, language, prompt, RAG sources, and handoff rules.
+- Give organizations simple controls for tone, language, prompt, RAG sources, and handoff rules.
 
 ---
 
@@ -149,7 +149,7 @@ Apply to StormeAI:
 
 ## Style
 
-Modern clinic SaaS.
+Modern organization SaaS.
 
 Not too medical, not too futuristic.
 
@@ -157,7 +157,7 @@ Not too medical, not too futuristic.
 
 ```txt
 Primary blue: #2563EB
-Clinical teal: #14B8A6
+Organizational teal: #14B8A6
 Success: #16A34A
 Warning: #F59E0B
 Emergency: #DC2626
@@ -170,8 +170,8 @@ Borders: #E2E8F0
 
 ## Layout pattern
 
-- Persistent left sidebar for clinic admin
-- Top status bar for clinic/workspace state
+- Persistent left sidebar for organization admin
+- Top status bar for organization/workspace state
 - Card-based dashboard metrics
 - Large configuration panels
 - Clear toggle switches and sliders
@@ -181,14 +181,14 @@ Borders: #E2E8F0
 
 ## Key UI modules to emphasize
 
-1. **AI Receptionist Command Center**
+1. **AI Agent Command Center**
    - online/offline status
    - current model route
    - safety mode
    - checklist of setup tasks
 
 2. **Personality & Prompt Builder**
-   - receptionist name
+   - agent name
    - tone
    - language
    - prompt preview
@@ -231,8 +231,8 @@ Borders: #E2E8F0
 
 StormeAI should feel like:
 
-> Linear / Intercom-level SaaS polish + clinic dashboard trust + chatbot configuration control.
+> Linear / Intercom-level SaaS polish + organization dashboard trust + chatbot configuration control.
 
 The best design direction is a **calm, white-card SaaS interface with blue/teal accents**, not a dark AI dashboard.
 
-This supports clinic trust, patient friendliness, and configuration-heavy workflows without making the product feel intimidating.
+This supports organization trust, patient friendliness, and configuration-heavy workflows without making the product feel intimidating.

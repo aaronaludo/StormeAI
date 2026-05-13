@@ -1,5 +1,5 @@
--- StormeAI initial multi-tenant clinic schema
--- Chat-only AI receptionist for clinics.
+-- StormeAI initial multi-tenant organization schema
+-- Chat-only AI agent for organizations.
 
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists vector with schema extensions;
@@ -22,11 +22,11 @@ create type public.workflow_event_type as enum (
   'billing.subscription_changed'
 );
 
-create table public.clinics (
+create table public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
-  clinic_type text,
+  organization_type text,
   logo_url text,
   timezone text not null default 'Asia/Manila',
   default_language text not null default 'en',
@@ -44,18 +44,19 @@ create table public.clinics (
   updated_at timestamptz not null default now()
 );
 
-create table public.clinic_members (
+create table public.organization_members (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   role public.member_role not null default 'staff',
   created_at timestamptz not null default now(),
-  unique (clinic_id, user_id)
+  unique (organization_id, user_id),
+  unique (user_id)
 );
 
 create table public.patients (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   full_name text not null,
   email text,
   phone text,
@@ -66,7 +67,7 @@ create table public.patients (
 
 create table public.services (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
   description text,
   duration_minutes integer not null default 30 check (duration_minutes > 0),
@@ -78,7 +79,7 @@ create table public.services (
 
 create table public.providers (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   display_name text not null,
   title text,
   bio text,
@@ -91,7 +92,7 @@ create table public.providers (
 
 create table public.appointments (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   patient_id uuid references public.patients(id) on delete set null,
   service_id uuid references public.services(id) on delete set null,
   provider_id uuid references public.providers(id) on delete set null,
@@ -106,9 +107,9 @@ create table public.appointments (
   updated_at timestamptz not null default now()
 );
 
-create table public.ai_receptionists (
+create table public.agents (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null unique references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null default 'Meng',
   tone text not null default 'warm, professional, concise',
   language_style text not null default 'English, with Taglish when appropriate',
@@ -128,7 +129,7 @@ create table public.ai_receptionists (
 
 create table public.chat_sessions (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   patient_id uuid references public.patients(id) on delete set null,
   channel text not null default 'web_widget',
   status text not null default 'open',
@@ -142,7 +143,7 @@ create table public.chat_sessions (
 
 create table public.chat_messages (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   session_id uuid not null references public.chat_sessions(id) on delete cascade,
   sender public.chat_sender not null,
   body text not null,
@@ -153,7 +154,7 @@ create table public.chat_messages (
 
 create table public.knowledge_documents (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   source_type public.knowledge_source_type not null default 'note',
   title text not null,
   content text,
@@ -167,7 +168,7 @@ create table public.knowledge_documents (
 
 create table public.knowledge_chunks (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   document_id uuid not null references public.knowledge_documents(id) on delete cascade,
   chunk_index integer not null,
   content text not null,
@@ -180,7 +181,7 @@ create table public.knowledge_chunks (
 
 create table public.workflows (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
   description text,
   is_active boolean not null default false,
@@ -192,7 +193,7 @@ create table public.workflows (
 
 create table public.workflow_events (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   workflow_id uuid references public.workflows(id) on delete set null,
   event_type public.workflow_event_type not null,
   payload jsonb not null default '{}'::jsonb,
@@ -204,7 +205,7 @@ create table public.workflow_events (
 
 create table public.billing_subscriptions (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null unique references public.clinics(id) on delete cascade,
+  organization_id uuid not null unique references public.organizations(id) on delete cascade,
   billing_provider public.billing_provider not null default 'manual',
   subscription_status public.subscription_status not null default 'trial',
   plan text not null default 'starter',
@@ -225,26 +226,26 @@ create table public.billing_subscriptions (
 
 create table public.usage_events (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
   event_name text not null,
   quantity integer not null default 1 check (quantity > 0),
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
-create index idx_clinic_members_user_id on public.clinic_members(user_id);
-create index idx_patients_clinic_id on public.patients(clinic_id);
-create index idx_services_clinic_id on public.services(clinic_id);
-create index idx_providers_clinic_id on public.providers(clinic_id);
-create index idx_appointments_clinic_status on public.appointments(clinic_id, status);
-create index idx_appointments_schedule on public.appointments(clinic_id, scheduled_start_at);
-create index idx_chat_sessions_clinic_status on public.chat_sessions(clinic_id, status);
+create index idx_organization_members_user_id on public.organization_members(user_id);
+create index idx_patients_organization_id on public.patients(organization_id);
+create index idx_services_organization_id on public.services(organization_id);
+create index idx_providers_organization_id on public.providers(organization_id);
+create index idx_appointments_organization_status on public.appointments(organization_id, status);
+create index idx_appointments_schedule on public.appointments(organization_id, scheduled_start_at);
+create index idx_chat_sessions_organization_status on public.chat_sessions(organization_id, status);
 create index idx_chat_messages_session_created on public.chat_messages(session_id, created_at);
-create index idx_knowledge_documents_clinic on public.knowledge_documents(clinic_id, status);
-create index idx_knowledge_chunks_clinic_document on public.knowledge_chunks(clinic_id, document_id);
+create index idx_knowledge_documents_organization on public.knowledge_documents(organization_id, status);
+create index idx_knowledge_chunks_organization_document on public.knowledge_chunks(organization_id, document_id);
 create index idx_knowledge_chunks_embedding on public.knowledge_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
-create index idx_workflow_events_clinic_type on public.workflow_events(clinic_id, event_type, created_at desc);
-create index idx_usage_events_clinic_name_created on public.usage_events(clinic_id, event_name, created_at desc);
+create index idx_workflow_events_organization_type on public.workflow_events(organization_id, event_type, created_at desc);
+create index idx_usage_events_organization_name_created on public.usage_events(organization_id, event_name, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -258,18 +259,18 @@ begin
 end;
 $$;
 
-create trigger set_clinics_updated_at before update on public.clinics for each row execute function public.set_updated_at();
+create trigger set_organizations_updated_at before update on public.organizations for each row execute function public.set_updated_at();
 create trigger set_patients_updated_at before update on public.patients for each row execute function public.set_updated_at();
 create trigger set_services_updated_at before update on public.services for each row execute function public.set_updated_at();
 create trigger set_providers_updated_at before update on public.providers for each row execute function public.set_updated_at();
 create trigger set_appointments_updated_at before update on public.appointments for each row execute function public.set_updated_at();
-create trigger set_ai_receptionists_updated_at before update on public.ai_receptionists for each row execute function public.set_updated_at();
+create trigger set_agents_updated_at before update on public.agents for each row execute function public.set_updated_at();
 create trigger set_chat_sessions_updated_at before update on public.chat_sessions for each row execute function public.set_updated_at();
 create trigger set_knowledge_documents_updated_at before update on public.knowledge_documents for each row execute function public.set_updated_at();
 create trigger set_workflows_updated_at before update on public.workflows for each row execute function public.set_updated_at();
 create trigger set_billing_subscriptions_updated_at before update on public.billing_subscriptions for each row execute function public.set_updated_at();
 
-create or replace function public.is_clinic_member(target_clinic_id uuid)
+create or replace function public.is_organization_member(target_organization_id uuid)
 returns boolean
 language sql
 stable
@@ -278,13 +279,13 @@ set search_path = public
 as $$
   select exists (
     select 1
-    from public.clinic_members cm
-    where cm.clinic_id = target_clinic_id
+    from public.organization_members cm
+    where cm.organization_id = target_organization_id
       and cm.user_id = auth.uid()
   );
 $$;
 
-create or replace function public.is_clinic_admin(target_clinic_id uuid)
+create or replace function public.is_organization_admin(target_organization_id uuid)
 returns boolean
 language sql
 stable
@@ -293,14 +294,14 @@ set search_path = public
 as $$
   select exists (
     select 1
-    from public.clinic_members cm
-    where cm.clinic_id = target_clinic_id
+    from public.organization_members cm
+    where cm.organization_id = target_organization_id
       and cm.user_id = auth.uid()
       and cm.role in ('owner', 'admin')
   );
 $$;
 
-create or replace function public.clinic_has_no_members(target_clinic_id uuid)
+create or replace function public.organization_has_no_members(target_organization_id uuid)
 returns boolean
 language sql
 stable
@@ -309,14 +310,14 @@ set search_path = public
 as $$
   select not exists (
     select 1
-    from public.clinic_members cm
-    where cm.clinic_id = target_clinic_id
+    from public.organization_members cm
+    where cm.organization_id = target_organization_id
   );
 $$;
 
 create or replace function public.match_knowledge_chunks(
   query_embedding vector(1536),
-  match_clinic_id uuid,
+  match_organization_id uuid,
   match_count integer default 8,
   min_similarity double precision default 0.72
 )
@@ -339,21 +340,21 @@ as $$
     1 - (kc.embedding <=> query_embedding) as similarity,
     kc.metadata
   from public.knowledge_chunks kc
-  where kc.clinic_id = match_clinic_id
-    and public.is_clinic_member(match_clinic_id)
+  where kc.organization_id = match_organization_id
+    and public.is_organization_member(match_organization_id)
     and kc.embedding is not null
     and 1 - (kc.embedding <=> query_embedding) >= min_similarity
   order by kc.embedding <=> query_embedding
   limit match_count;
 $$;
 
-alter table public.clinics enable row level security;
-alter table public.clinic_members enable row level security;
+alter table public.organizations enable row level security;
+alter table public.organization_members enable row level security;
 alter table public.patients enable row level security;
 alter table public.services enable row level security;
 alter table public.providers enable row level security;
 alter table public.appointments enable row level security;
-alter table public.ai_receptionists enable row level security;
+alter table public.agents enable row level security;
 alter table public.chat_sessions enable row level security;
 alter table public.chat_messages enable row level security;
 alter table public.knowledge_documents enable row level security;
@@ -363,35 +364,35 @@ alter table public.workflow_events enable row level security;
 alter table public.billing_subscriptions enable row level security;
 alter table public.usage_events enable row level security;
 
-create policy "members can view their clinics" on public.clinics for select using (public.is_clinic_member(id));
-create policy "admins can update their clinics" on public.clinics for update using (public.is_clinic_admin(id)) with check (public.is_clinic_admin(id));
-create policy "authenticated users can create clinics" on public.clinics for insert to authenticated with check (true);
+create policy "members can view their organizations" on public.organizations for select using (public.is_organization_member(id));
+create policy "admins can update their organizations" on public.organizations for update using (public.is_organization_admin(id)) with check (public.is_organization_admin(id));
+create policy "authenticated users can create organizations" on public.organizations for insert to authenticated with check (true);
 
-create policy "members can view memberships" on public.clinic_members for select using (public.is_clinic_member(clinic_id) or user_id = auth.uid());
-create policy "admins can manage memberships" on public.clinic_members for all using (public.is_clinic_admin(clinic_id)) with check (public.is_clinic_admin(clinic_id));
-create policy "users can create first owner membership" on public.clinic_members
+create policy "members can view memberships" on public.organization_members for select using (public.is_organization_member(organization_id) or user_id = auth.uid());
+create policy "admins can manage memberships" on public.organization_members for all using (public.is_organization_admin(organization_id)) with check (public.is_organization_admin(organization_id));
+create policy "users can create first owner membership" on public.organization_members
   for insert to authenticated
   with check (
     user_id = auth.uid()
     and role = 'owner'
-    and public.clinic_has_no_members(clinic_id)
+    and public.organization_has_no_members(organization_id)
   );
 
-create policy "members can view patients" on public.patients for select using (public.is_clinic_member(clinic_id));
-create policy "members can insert patients" on public.patients for insert with check (public.is_clinic_member(clinic_id));
-create policy "members can update patients" on public.patients for update using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
+create policy "members can view patients" on public.patients for select using (public.is_organization_member(organization_id));
+create policy "members can insert patients" on public.patients for insert with check (public.is_organization_member(organization_id));
+create policy "members can update patients" on public.patients for update using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
 
-create policy "members can manage services" on public.services for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage providers" on public.providers for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage appointments" on public.appointments for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage ai receptionist" on public.ai_receptionists for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage chat sessions" on public.chat_sessions for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage chat messages" on public.chat_messages for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage knowledge documents" on public.knowledge_documents for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage knowledge chunks" on public.knowledge_chunks for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can manage workflows" on public.workflows for all using (public.is_clinic_member(clinic_id)) with check (public.is_clinic_member(clinic_id));
-create policy "members can view workflow events" on public.workflow_events for select using (public.is_clinic_member(clinic_id));
-create policy "members can insert workflow events" on public.workflow_events for insert with check (public.is_clinic_member(clinic_id));
-create policy "admins can manage billing subscriptions" on public.billing_subscriptions for all using (public.is_clinic_admin(clinic_id)) with check (public.is_clinic_admin(clinic_id));
-create policy "members can view usage events" on public.usage_events for select using (public.is_clinic_member(clinic_id));
-create policy "members can insert usage events" on public.usage_events for insert with check (public.is_clinic_member(clinic_id));
+create policy "members can manage services" on public.services for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage providers" on public.providers for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage appointments" on public.appointments for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage ai agent" on public.agents for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage chat sessions" on public.chat_sessions for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage chat messages" on public.chat_messages for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage knowledge documents" on public.knowledge_documents for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage knowledge chunks" on public.knowledge_chunks for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can manage workflows" on public.workflows for all using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "members can view workflow events" on public.workflow_events for select using (public.is_organization_member(organization_id));
+create policy "members can insert workflow events" on public.workflow_events for insert with check (public.is_organization_member(organization_id));
+create policy "admins can manage billing subscriptions" on public.billing_subscriptions for all using (public.is_organization_admin(organization_id)) with check (public.is_organization_admin(organization_id));
+create policy "members can view usage events" on public.usage_events for select using (public.is_organization_member(organization_id));
+create policy "members can insert usage events" on public.usage_events for insert with check (public.is_organization_member(organization_id));

@@ -4,15 +4,15 @@ This design pack contains Figma-importable SVG mockups for a more modern, user-f
 
 ## Design goal
 
-StormeAI should feel like a premium clinic operations cockpit: calm, safe, easy to configure, and focused on turning patient chats into appointments.
+StormeAI should feel like a premium organization operations cockpit: calm, safe, easy to configure, and focused on turning patient chats into appointments.
 
 ## Pages included
 
 1. Landing Page
 2. Auth / Sign In
-3. Clinic Onboarding
+3. Organization Onboarding
 4. Dashboard Overview
-5. AI Receptionist Command Center
+5. AI Agent Command Center
 6. AI Personality & Prompt Configuration
 7. AI Provider Configuration
 8. Knowledge Base & RAG Sources
@@ -35,17 +35,17 @@ StormeAI should feel like a premium clinic operations cockpit: calm, safe, easy 
 ## Design principles
 
 - Modern SaaS polish, not generic admin UI
-- Friendly clinic-specific language
+- Friendly organization-specific language
 - Clear configuration controls
 - Safety and handoff always visible
 - Appointment-first UX
-- Tenant-aware clinic settings
-- Calm clinical blue + teal palette
+- Tenant-aware organization settings
+- Calm trusted blue + teal palette
 - Rounded surfaces, soft shadows, clear hierarchy
 
 ## Configuration areas represented
 
-- AI receptionist personality
+- AI agent personality
 - System prompt and safety rules
 - AI provider routing: Ollama, OpenAI, Claude
 - RAG source settings

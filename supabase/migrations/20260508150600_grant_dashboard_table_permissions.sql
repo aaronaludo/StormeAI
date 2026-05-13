@@ -1,5 +1,5 @@
--- Allow logged-in clinic members to use dashboard tables through existing RLS policies.
--- RLS still enforces clinic membership via the policies created in the initial schema.
+-- Allow logged-in organization members to use dashboard tables through existing RLS policies.
+-- RLS still enforces organization membership via the policies created in the initial schema.
 
 grant select, insert, update, delete on table public.knowledge_documents to authenticated;
 grant select, insert, update, delete on table public.knowledge_chunks to authenticated;

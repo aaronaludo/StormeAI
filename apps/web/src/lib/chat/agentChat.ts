@@ -1,16 +1,16 @@
 import { createChatCompletion } from "../ai/providers";
-import { buildSettingsPromptPreview, DEFAULT_AI_MODEL_ID, loadReceptionistSettings, type ReceptionistSettingsRecord } from "../ai/receptionistSettings";
+import { buildSettingsPromptPreview, DEFAULT_AI_MODEL_ID, loadAgentSettings, type AgentSettingsRecord } from "../ai/agentSettings";
 import { supabase } from "../supabase";
 import { getWorkspaceSelection } from "../workspaceSelection";
-import type { RagContext } from "../ai/receptionistPrompt";
+import type { RagContext } from "../ai/agentPrompt";
 
-export type ReceptionistChatTurnInput = {
+export type AgentChatTurnInput = {
   sessionId?: string;
   patientMessage: string;
-  receptionistName?: string;
+  agentName?: string;
 };
 
-export type ReceptionistChatTurnResult = {
+export type AgentChatTurnResult = {
   sessionId: string;
   reply: string;
   mode: "ai" | "safe-fallback" | "rule";
@@ -18,12 +18,12 @@ export type ReceptionistChatTurnResult = {
   bookingUrl?: string;
 };
 
-export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput): Promise<ReceptionistChatTurnResult> {
+export async function sendAgentChatTurn(input: AgentChatTurnInput): Promise<AgentChatTurnResult> {
   const selection = getWorkspaceSelection();
-  if (!selection.clinicId) throw new Error("Choose a clinic before testing chat.");
+  if (!selection.organizationId) throw new Error("Choose an organization before testing chat.");
 
-  const settings = await loadReceptionistSettings(selection.clinicId, selection.receptionistId);
-  const activeName = input.receptionistName || settings.name;
+  const settings = await loadAgentSettings(selection.organizationId, selection.agentId);
+  const activeName = input.agentName || settings.name;
   const chatSettings = {
     ...settings,
     name: activeName,
@@ -31,7 +31,7 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
   };
   const useLocalOllama = import.meta.env.DEV && chatSettings.defaultProvider === "ollama";
 
-  if (useLocalOllama) return sendLocalOllamaTestChatTurn(input, chatSettings, chatSettings.clinicId || selection.clinicId);
+  if (useLocalOllama) return sendLocalOllamaTestChatTurn(input, chatSettings, chatSettings.organizationId || selection.organizationId);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!supabaseUrl) throw new Error("Missing VITE_SUPABASE_URL.");
@@ -40,8 +40,8 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      clinicId: selection.clinicId,
-      receptionistId: selection.receptionistId,
+      organizationId: selection.organizationId,
+      agentId: selection.agentId,
       sessionId: input.sessionId,
       message: input.patientMessage,
       source: "dashboard_test_chat",
@@ -53,18 +53,18 @@ export async function sendReceptionistChatTurn(input: ReceptionistChatTurnInput)
 
   return {
     sessionId: data.sessionId,
-    reply: sanitizeReceptionistName(data.reply, activeName),
+    reply: sanitizeAgentName(data.reply, activeName),
     mode: data.mode || "ai",
     citations: data.citations || [],
     bookingUrl: data.bookingUrl || undefined,
   };
 }
 
-async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, settings: ReceptionistSettingsRecord, clinicId: string): Promise<ReceptionistChatTurnResult> {
-  const citations = await retrieveKnowledge(clinicId, input.patientMessage);
+async function sendLocalOllamaTestChatTurn(input: AgentChatTurnInput, settings: AgentSettingsRecord, organizationId: string): Promise<AgentChatTurnResult> {
+  const citations = await retrieveKnowledge(organizationId, input.patientMessage);
   const sessionId = input.sessionId || `local-${crypto.randomUUID()}`;
   if (wantsBooking(input.patientMessage)) {
-    const bookingUrl = `/book/${clinicId}?${new URLSearchParams({ sessionId }).toString()}`;
+    const bookingUrl = `/book/${organizationId}?${new URLSearchParams({ sessionId }).toString()}`;
     return {
       sessionId,
       reply: buildBookingRedirectReply(input.patientMessage),
@@ -76,9 +76,9 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 
   const prompt = [
     buildSettingsPromptPreview(settings),
-    `Your receptionist name is ${settings.name}. Do not call yourself Meng unless your name is Meng.`,
+    `Your agent name is ${settings.name}. Do not call yourself Meng unless your name is Meng.`,
     renderKnowledge(citations),
-    "This is a local dashboard Test Chat turn. Reply as the configured receptionist.",
+    "This is a local dashboard Test Chat turn. Reply as the configured agent.",
   ].join("\n\n");
 
   const completion = await createChatCompletion({
@@ -90,42 +90,42 @@ async function sendLocalOllamaTestChatTurn(input: ReceptionistChatTurnInput, set
 
   return {
     sessionId,
-    reply: sanitizeReceptionistName(completion.content.trim() || "I’m here, but I couldn’t generate a response. Please try again.", settings.name),
+    reply: sanitizeAgentName(completion.content.trim() || "I’m here, but I couldn’t generate a response. Please try again.", settings.name),
     mode: "ai",
     citations,
   };
 }
 
-function sanitizeReceptionistName(reply: string, receptionistName: string) {
-  if (!receptionistName || receptionistName === "Meng") return reply;
-  return reply.replace(/\bMia\b/g, receptionistName);
+function sanitizeAgentName(reply: string, agentName: string) {
+  if (!agentName || agentName === "Meng") return reply;
+  return reply.replace(/\bMia\b/g, agentName);
 }
 
 function buildBookingRedirectReply(message: string) {
   const lower = message.toLowerCase();
   const isTaglish = ["gusto", "tulungan", "ako", "mag book", "mag-book", "pa book", "pabook"].some((term) => lower.includes(term));
   return isTaglish
-    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Clinic staff ang magco-confirm ng availability."
-    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Clinic staff will confirm availability.";
+    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Organization staff ang magco-confirm ng availability."
+    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Organization staff will confirm availability.";
 }
 
 function wantsBooking(message: string) {
   return ["appointment", "book", "booking", "schedule", "reschedule", "cancel", "available", "slot", "pabook", "pa book", "mag-book", "mag book"].some((term) => message.toLowerCase().includes(term));
 }
 
-async function retrieveKnowledge(clinicId: string, message: string): Promise<RagContext> {
+async function retrieveKnowledge(organizationId: string, message: string): Promise<RagContext> {
   if (!supabase) return [];
   const terms = message.toLowerCase().match(/[a-z0-9]+/g)?.filter((term) => term.length >= 4).slice(0, 5) || [];
   const orFilter = terms.flatMap((term) => [`title.ilike.%${term}%`, `content.ilike.%${term}%`]).join(",");
-  let query = supabase.from("knowledge_documents").select("title,content").eq("clinic_id", clinicId).in("status", ["indexed", "published", "approved"]).limit(4);
+  let query = supabase.from("knowledge_documents").select("title,content").eq("organization_id", organizationId).in("status", ["indexed", "published", "approved"]).limit(4);
   if (orFilter) query = query.or(orFilter);
   const { data } = await query;
   return (data || []).filter((item: { title?: string | null; content?: string | null }) => item.content).map((item: { title?: string | null; content?: string | null }) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
 }
 
 function renderKnowledge(citations: RagContext) {
-  if (!citations.length) return "No approved clinic knowledge snippets were retrieved for this turn.";
-  return `Approved clinic knowledge snippets:\n${citations.map((item, index) => `[${index + 1}]${item.title ? ` (${item.title})` : ""} ${item.content}`).join("\n")}`;
+  if (!citations.length) return "No approved organization knowledge snippets were retrieved for this turn.";
+  return `Approved organization knowledge snippets:\n${citations.map((item, index) => `[${index + 1}]${item.title ? ` (${item.title})` : ""} ${item.content}`).join("\n")}`;
 }
 
 // Kept to avoid breaking future imports that expect Supabase to be initialized here.

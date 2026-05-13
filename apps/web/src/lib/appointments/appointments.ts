@@ -1,7 +1,7 @@
 export type AppointmentStatus = "requested" | "confirmed" | "rescheduled" | "canceled" | "completed" | "no_show";
 
 export type AppointmentRequestInput = {
-  clinicId: string;
+  organizationId: string;
   patientName: string;
   patientEmail?: string;
   patientPhone?: string;
@@ -12,9 +12,9 @@ export type AppointmentRequestInput = {
 };
 
 export type AppointmentDraft = {
-  patient: { clinic_id: string; full_name: string; email?: string; phone?: string };
+  patient: { organization_id: string; full_name: string; email?: string; phone?: string };
   appointment: {
-    clinic_id: string;
+    organization_id: string;
     status: AppointmentStatus;
     service_id?: string;
     provider_id?: string;
@@ -27,13 +27,13 @@ export type AppointmentDraft = {
 export function buildAppointmentDraft(input: AppointmentRequestInput): AppointmentDraft {
   return {
     patient: {
-      clinic_id: input.clinicId,
+      organization_id: input.organizationId,
       full_name: input.patientName,
       email: input.patientEmail,
       phone: input.patientPhone,
     },
     appointment: {
-      clinic_id: input.clinicId,
+      organization_id: input.organizationId,
       status: "requested",
       service_id: input.serviceId,
       provider_id: input.providerId,
@@ -46,7 +46,7 @@ export function buildAppointmentDraft(input: AppointmentRequestInput): Appointme
 
 export function validateAppointmentRequest(input: AppointmentRequestInput) {
   const missing: string[] = [];
-  if (!input.clinicId) missing.push("clinicId");
+  if (!input.organizationId) missing.push("organizationId");
   if (!input.patientName) missing.push("patientName");
   if (!input.patientEmail && !input.patientPhone) missing.push("patientEmail or patientPhone");
   if (!input.serviceId) missing.push("serviceId");

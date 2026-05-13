@@ -7,4 +7,4 @@ StormeAI uses one MVP plan:
 - Manual billing / manual activation
 - No external checkout dependency for MVP
 
-The product is intentionally simple: clinics pay a fixed monthly fee for the chat-only AI receptionist, knowledge base, appointment intake, dashboard analytics, and safety handoff tools.
+The product is intentionally simple: organizations pay a fixed monthly fee for the chat-only AI agent, knowledge base, appointment intake, dashboard analytics, and safety handoff tools.

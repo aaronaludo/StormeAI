@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 export type ChatChannel = "web_widget";
 
 export type PublicChatInput = {
-  clinicId: string;
-  receptionistId?: string;
+  organizationId: string;
+  agentId?: string;
   sessionId?: string;
   channel?: ChatChannel;
   patientMessage: string;
@@ -19,26 +19,26 @@ if (!serviceRoleKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY for Stor
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-export async function runReceptionistTurn(input: PublicChatInput) {
-  if (!input.clinicId) throw new Error("clinicId is required.");
+export async function runAgentTurn(input: PublicChatInput) {
+  if (!input.organizationId) throw new Error("organizationId is required.");
   const patientMessage = input.patientMessage?.trim();
   if (!patientMessage) throw new Error("patientMessage is required.");
 
-  const context = await loadReceptionist(input.clinicId, input.receptionistId);
-  const sessionId = input.sessionId || await findOrCreateSession(input.clinicId, input.channel || "web_widget", input.metadata || {});
+  const context = await loadAgent(input.organizationId, input.agentId);
+  const sessionId = input.sessionId || await findOrCreateSession(input.organizationId, input.channel || "web_widget", input.metadata || {});
 
-  await insertMessage(input.clinicId, sessionId, "patient", patientMessage, [], input.metadata || {});
+  await insertMessage(input.organizationId, sessionId, "patient", patientMessage, [], input.metadata || {});
 
-  const citations = await retrieveKnowledge(input.clinicId, patientMessage);
+  const citations = await retrieveKnowledge(input.organizationId, patientMessage);
   const emergency = isEmergency(patientMessage);
   const handoff = wantsHandoff(patientMessage);
   const bookingUrl = buildBookingUrl(input, sessionId);
-  const deterministicReply = answerCommonReceptionistQuestion(patientMessage, context);
+  const deterministicReply = answerCommonAgentQuestion(patientMessage, context);
   if (deterministicReply) {
     const reply = wantsBooking(patientMessage) ? buildBookingRedirectReply(patientMessage) : deterministicReply;
-    await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode: "rule", reason: "common_receptionist_question", booking_url: wantsBooking(patientMessage) ? bookingUrl : undefined });
+    await insertMessage(input.organizationId, sessionId, "assistant", reply, citations, { mode: "rule", reason: "common_agent_question", booking_url: wantsBooking(patientMessage) ? bookingUrl : undefined });
     await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
-    return { sessionId, reply, mode: "rule", citations, receptionistName: context.name, bookingUrl: wantsBooking(patientMessage) ? bookingUrl : undefined };
+    return { sessionId, reply, mode: "rule", citations, agentName: context.name, bookingUrl: wantsBooking(patientMessage) ? bookingUrl : undefined };
   }
 
   const prompt = buildPrompt(context, citations);
@@ -48,73 +48,73 @@ export async function runReceptionistTurn(input: PublicChatInput) {
   try {
     const completion = await createChatCompletion({ provider: "ollama", model: "qwen2.5:7b", messages: [{ role: "system", content: prompt }, { role: "user", content: patientMessage }], temperature: 0.2 });
     reply = completion.content.trim() || safeFallback(patientMessage, citations);
-    await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode, provider: completion.provider, model: completion.model });
+    await insertMessage(input.organizationId, sessionId, "assistant", reply, citations, { mode, provider: completion.provider, model: completion.model });
   } catch (error) {
     mode = "safe-fallback";
     reply = safeFallback(patientMessage, citations, error instanceof Error ? error.message : String(error));
-    await insertMessage(input.clinicId, sessionId, "assistant", reply, citations, { mode, error: error instanceof Error ? error.message : String(error) });
+    await insertMessage(input.organizationId, sessionId, "assistant", reply, citations, { mode, error: error instanceof Error ? error.message : String(error) });
   }
 
   await supabase.from("chat_sessions").update({ emergency_flag: emergency, handoff_requested: handoff, last_message_at: new Date().toISOString(), metadata: input.metadata || {} }).eq("id", sessionId);
 
-  return { sessionId, reply, mode, citations, receptionistName: context.name };
+  return { sessionId, reply, mode, citations, agentName: context.name };
 }
 
 function buildBookingUrl(input: PublicChatInput, sessionId: string) {
   const appUrl = typeof input.metadata?.app_url === "string" && input.metadata.app_url ? input.metadata.app_url.replace(/\/$/, "") : "";
   const origin = appUrl || (typeof input.metadata?.origin === "string" && input.metadata.origin ? input.metadata.origin.replace(/\/$/, "") : "");
   const params = new URLSearchParams({ sessionId });
-  if (input.receptionistId) params.set("receptionistId", input.receptionistId);
-  return `${origin}/book/${input.clinicId}?${params.toString()}`;
+  if (input.agentId) params.set("agentId", input.agentId);
+  return `${origin}/book/${input.organizationId}?${params.toString()}`;
 }
 
-async function loadReceptionist(clinicId: string, receptionistId?: string) {
+async function loadAgent(organizationId: string, agentId?: string) {
   let query = supabase
-    .from("ai_receptionists")
-    .select("id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,offer_appointment_when_relevant,emergency_handoff_enabled,human_handoff_enabled,settings,clinics(name,clinic_type,timezone,business_hours)")
-    .eq("clinic_id", clinicId)
+    .from("agents")
+    .select("id,name,tone,language_style,base_system_prompt,default_provider,default_model,use_approved_knowledge_only,offer_appointment_when_relevant,emergency_handoff_enabled,human_handoff_enabled,settings,organizations(name,organization_type,timezone,business_hours)")
+    .eq("organization_id", organizationId)
     .order("updated_at", { ascending: false })
     .limit(1);
-  if (receptionistId) query = query.eq("id", receptionistId);
+  if (agentId) query = query.eq("id", agentId);
   const { data, error } = await query.single();
-  if (error) throw new Error(`Load receptionist failed: ${error.message}`);
+  if (error) throw new Error(`Load agent failed: ${error.message}`);
   return data as any;
 }
 
-async function findOrCreateSession(clinicId: string, channel: ChatChannel, metadata: Record<string, unknown>) {
+async function findOrCreateSession(organizationId: string, channel: ChatChannel, metadata: Record<string, unknown>) {
   const telegramChatId = metadata.telegram_chat_id ? String(metadata.telegram_chat_id) : undefined;
   if (telegramChatId) {
-    const { data } = await supabase.from("chat_sessions").select("id").eq("clinic_id", clinicId).eq("channel", channel).eq("status", "open").contains("metadata", { telegram_chat_id: telegramChatId }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data } = await supabase.from("chat_sessions").select("id").eq("organization_id", organizationId).eq("channel", channel).eq("status", "open").contains("metadata", { telegram_chat_id: telegramChatId }).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (data?.id) return data.id as string;
   }
 
-  const { data, error } = await supabase.from("chat_sessions").insert({ clinic_id: clinicId, channel, metadata }).select("id").single();
+  const { data, error } = await supabase.from("chat_sessions").insert({ organization_id: organizationId, channel, metadata }).select("id").single();
   if (error) throw new Error(`Create chat session failed: ${error.message}`);
   return data.id as string;
 }
 
-async function insertMessage(clinicId: string, sessionId: string, sender: "patient" | "assistant" | "staff" | "system", body: string, citations: unknown[] = [], metadata: Record<string, unknown> = {}) {
-  const { error } = await supabase.from("chat_messages").insert({ clinic_id: clinicId, session_id: sessionId, sender, body, citations, metadata });
+async function insertMessage(organizationId: string, sessionId: string, sender: "patient" | "assistant" | "staff" | "system", body: string, citations: unknown[] = [], metadata: Record<string, unknown> = {}) {
+  const { error } = await supabase.from("chat_messages").insert({ organization_id: organizationId, session_id: sessionId, sender, body, citations, metadata });
   if (error) throw new Error(`Save chat message failed: ${error.message}`);
 }
 
-async function retrieveKnowledge(clinicId: string, message: string) {
+async function retrieveKnowledge(organizationId: string, message: string) {
   const terms = message.toLowerCase().match(/[a-z0-9]+/g)?.filter((term) => term.length >= 4).slice(0, 5) || [];
   const orFilter = terms.flatMap((term) => [`title.ilike.%${term}%`, `content.ilike.%${term}%`]).join(",");
-  let query = supabase.from("knowledge_documents").select("title,content").eq("clinic_id", clinicId).in("status", ["indexed", "published", "approved"]).limit(4);
+  let query = supabase.from("knowledge_documents").select("title,content").eq("organization_id", organizationId).in("status", ["indexed", "published", "approved"]).limit(4);
   if (orFilter) query = query.or(orFilter);
   const { data } = await query;
   return (data || []).filter((item: any) => item.content).map((item: any) => ({ title: item.title || undefined, content: String(item.content).slice(0, 900) }));
 }
 
 
-async function maybeCreateAppointmentRequest(clinicId: string, sessionId: string, latestMessage: string) {
+async function maybeCreateAppointmentRequest(organizationId: string, sessionId: string, latestMessage: string) {
   if (!wantsBooking(latestMessage)) return null;
 
   const { data: existing } = await supabase
     .from("appointments")
     .select("id")
-    .eq("clinic_id", clinicId)
+    .eq("organization_id", organizationId)
     .eq("source", "chat")
     .ilike("patient_note", `%Chat session: ${sessionId}%`)
     .limit(1)
@@ -124,7 +124,7 @@ async function maybeCreateAppointmentRequest(clinicId: string, sessionId: string
   const { data: messages } = await supabase
     .from("chat_messages")
     .select("body")
-    .eq("clinic_id", clinicId)
+    .eq("organization_id", organizationId)
     .eq("session_id", sessionId)
     .eq("sender", "patient")
     .order("created_at", { ascending: true })
@@ -135,7 +135,7 @@ async function maybeCreateAppointmentRequest(clinicId: string, sessionId: string
   if (!details.patientName || !details.contact || !details.service || !details.preferredTime) return null;
 
   const { data: patient, error: patientError } = await supabase.from("patients").insert({
-    clinic_id: clinicId,
+    organization_id: organizationId,
     full_name: details.patientName,
     email: details.contact.includes("@") ? details.contact : null,
     phone: details.contact.includes("@") ? null : details.contact,
@@ -152,7 +152,7 @@ async function maybeCreateAppointmentRequest(clinicId: string, sessionId: string
   ].join("\n");
 
   const { data: appointment, error } = await supabase.from("appointments").insert({
-    clinic_id: clinicId,
+    organization_id: organizationId,
     patient_id: patient.id,
     status: "requested",
     requested_start_at: details.requestedStartAt,
@@ -225,22 +225,22 @@ function parsePreferredTime(value: string) {
   return date.toISOString();
 }
 
-function answerCommonReceptionistQuestion(message: string, context: any) {
+function answerCommonAgentQuestion(message: string, context: any) {
   const lower = message.toLowerCase();
-  const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
+  const organization = Array.isArray(context.organizations) ? context.organizations[0] : context.organizations;
   const settings = context.settings || {};
-  const receptionistName = context.name || "Meng";
-  const clinicName = clinic?.name || "the clinic";
+  const agentName = context.name || "Meng";
+  const organizationName = organization?.name || "the organization";
 
   if (["what's your name", "what is your name", "who are you", "your name"].some((term) => lower.includes(term))) {
-    return `I’m ${receptionistName}, the StormeAI chat receptionist for ${clinicName}. I can help with clinic questions, appointment requests, and staff handoff.`;
+    return `I’m ${agentName}, the StormeAI chat agent for ${organizationName}. I can help with organization questions, appointment requests, and staff handoff.`;
   }
 
-  if (["clinic hours", "business hours", "open", "closing", "closed", "schedule"].some((term) => lower.includes(term))) {
-    const hours = settings.businessHours || formatBusinessHours(clinic?.business_hours);
+  if (["organization hours", "business hours", "open", "closing", "closed", "schedule"].some((term) => lower.includes(term))) {
+    const hours = settings.businessHours || formatBusinessHours(organization?.business_hours);
     return hours
-      ? `${clinicName} hours: ${hours}. If you want, I can also collect your preferred appointment date and time for staff confirmation.`
-      : `I don’t have confirmed clinic hours saved yet for ${clinicName}. I can collect your question and route it to clinic staff, or help request an appointment for staff confirmation.`;
+      ? `${organizationName} hours: ${hours}. If you want, I can also collect your preferred appointment date and time for staff confirmation.`
+      : `I don’t have confirmed organization hours saved yet for ${organizationName}. I can collect your question and route it to organization staff, or help request an appointment for staff confirmation.`;
   }
 
   if (wantsBooking(message)) {
@@ -252,7 +252,7 @@ function answerCommonReceptionistQuestion(message: string, context: any) {
   }
 
   if (wantsHandoff(message)) {
-    return "Sure — I can flag this for clinic staff. Please share your name, contact number or email, and what you need help with.";
+    return "Sure — I can flag this for organization staff. Please share your name, contact number or email, and what you need help with.";
   }
 
   return null;
@@ -273,22 +273,22 @@ function formatBusinessHours(value: unknown) {
 }
 
 function buildPrompt(context: any, citations: Array<{ title?: string; content: string }>) {
-  const clinic = Array.isArray(context.clinics) ? context.clinics[0] : context.clinics;
+  const organization = Array.isArray(context.organizations) ? context.organizations[0] : context.organizations;
   const settings = context.settings || {};
-  const knowledge = citations.length ? citations.map((item, index) => `[${index + 1}] ${item.title || "Clinic source"}: ${item.content}`).join("\n") : "No matching approved clinic knowledge found.";
+  const knowledge = citations.length ? citations.map((item, index) => `[${index + 1}] ${item.title || "Organization source"}: ${item.content}`).join("\n") : "No matching approved organization knowledge found.";
   return [
-    `You are ${context.name || "Meng"}, StormeAI chat-only receptionist for ${clinic?.name || "this clinic"}.`,
-    `Clinic type: ${clinic?.clinic_type || "clinic"}.`,
+    `You are ${context.name || "Meng"}, StormeAI chat-only agent for ${organization?.name || "this organization"}.`,
+    `Organization type: ${organization?.organization_type || "organization"}.`,
     `Tone: ${context.tone || "warm, professional, concise"}.`,
     `Language: ${context.language_style || "English, with Taglish when appropriate"}.`,
-    settings.businessHours ? `Clinic hours: ${settings.businessHours}.` : undefined,
+    settings.businessHours ? `Organization hours: ${settings.businessHours}.` : undefined,
     settings.bookingInstructions ? `Booking instructions: ${settings.bookingInstructions}` : undefined,
     settings.handoffInstructions ? `Handoff instructions: ${settings.handoffInstructions}` : undefined,
-    context.use_approved_knowledge_only ? "Answer clinic-specific questions only from approved clinic knowledge." : "Prefer approved clinic knowledge and be clear when unsure.",
+    context.use_approved_knowledge_only ? "Answer organization-specific questions only from approved organization knowledge." : "Prefer approved organization knowledge and be clear when unsure.",
     "Never diagnose, prescribe, interpret symptoms, or present as a doctor.",
     "For urgent symptoms, tell the patient to seek emergency care immediately and offer staff handoff.",
-    `Approved clinic knowledge:\n${knowledge}`,
-    context.base_system_prompt ? `Clinic custom prompt: ${context.base_system_prompt}` : undefined,
+    `Approved organization knowledge:\n${knowledge}`,
+    context.base_system_prompt ? `Organization custom prompt: ${context.base_system_prompt}` : undefined,
   ].filter(Boolean).join("\n");
 }
 
@@ -309,16 +309,16 @@ async function ollamaChat(request: AiRequest) {
 function safeFallback(message: string, citations: Array<{ content: string }>, providerError?: string) {
   if (isEmergency(message)) return "I can’t provide emergency medical help. If this is urgent or life-threatening, please call emergency services or go to the nearest emergency room immediately.";
   if (wantsBooking(message)) return buildBookingRedirectReply(message);
-  if (citations.length) return `I found clinic-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
-  return providerError ? "I can’t confirm that from approved clinic knowledge right now. I can still collect your concern and route it to clinic staff. What would you like help with?" : "I can’t confirm that from approved clinic knowledge yet. I can collect your question and route it to clinic staff for follow-up.";
+  if (citations.length) return `I found organization-approved information that may help: ${citations[0].content.slice(0, 260)}${citations[0].content.length > 260 ? "…" : ""}`;
+  return providerError ? "I can’t confirm that from approved organization knowledge right now. I can still collect your concern and route it to organization staff. What would you like help with?" : "I can’t confirm that from approved organization knowledge yet. I can collect your question and route it to organization staff for follow-up.";
 }
 function isEmergency(message: string) { return ["chest pain", "bleeding", "can't breathe", "cant breathe", "emergency", "urgent", "fainted", "severe pain"].some((term) => message.toLowerCase().includes(term)); }
 function buildBookingRedirectReply(message: string) {
   const lower = message.toLowerCase();
   const isTaglish = ["gusto", "tulungan", "ako", "mag book", "mag-book", "pa book", "pabook"].some((term) => lower.includes(term));
   return isTaglish
-    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Clinic staff ang magco-confirm ng availability."
-    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Clinic staff will confirm availability.";
+    ? "Oo, tutulungan kita mag-request ng appointment. Para malinaw at kumpleto ang details mo, pindutin ang Redirect button at ilagay doon ang preferred date, time, service, name, at contact details. Organization staff ang magco-confirm ng availability."
+    : "Sure — I can help you request an appointment. Please tap the Redirect button so you can enter your preferred date, time, service, name, and contact details clearly. Organization staff will confirm availability.";
 }
 function wantsBooking(message: string) { return ["appointment", "book", "booking", "schedule", "reschedule", "cancel", "available", "slot", "pabook", "pa book", "mag-book", "mag book"].some((term) => message.toLowerCase().includes(term)); }
-function wantsHandoff(message: string) { return ["staff", "human", "receptionist", "call me", "contact me", "talk to someone"].some((term) => message.toLowerCase().includes(term)); }
+function wantsHandoff(message: string) { return ["staff", "human", "agent", "call me", "contact me", "talk to someone"].some((term) => message.toLowerCase().includes(term)); }

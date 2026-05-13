@@ -1,10 +1,10 @@
-# AI Receptionist Settings Forms
+# AI Agent Settings Forms
 
-ST-011 adds a reusable settings form for receptionist configuration.
+ST-011 adds a reusable settings form for agent configuration.
 
 ## Fields
 
-- receptionist name
+- agent name
 - tone
 - language style
 - default provider
@@ -16,6 +16,6 @@ ST-011 adds a reusable settings form for receptionist configuration.
 
 ## Next
 
-- Load/save from `ai_receptionists`
+- Load/save from `agents`
 - Add validation and audit log
 - Connect form values to prompt builder and AI provider router

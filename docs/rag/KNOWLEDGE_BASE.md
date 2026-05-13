@@ -19,4 +19,4 @@ ST-006 adds the frontend-safe RAG preparation utilities.
 
 - Add embedding generation in Supabase Edge Functions
 - Store embeddings in pgvector
-- Use retrieved snippets in the receptionist prompt
+- Use retrieved snippets in the agent prompt

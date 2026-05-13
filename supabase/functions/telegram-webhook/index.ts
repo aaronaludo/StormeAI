@@ -1,11 +1,11 @@
-import { runReceptionistTurn } from "../_shared/receptionist.ts";
+import { runAgentTurn } from "../_shared/agent.ts";
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") return new Response("ok");
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  const clinicId = Deno.env.get("STORMEAI_TELEGRAM_CLINIC_ID");
-  const receptionistId = Deno.env.get("STORMEAI_TELEGRAM_RECEPTIONIST_ID") || undefined;
-  if (!token || !clinicId) return new Response("Missing TELEGRAM_BOT_TOKEN or STORMEAI_TELEGRAM_CLINIC_ID", { status: 500 });
+  const organizationId = Deno.env.get("STORMEAI_TELEGRAM_ORGANIZATION_ID");
+  const agentId = Deno.env.get("STORMEAI_TELEGRAM_AGENT_ID") || undefined;
+  if (!token || !organizationId) return new Response("Missing TELEGRAM_BOT_TOKEN or STORMEAI_TELEGRAM_ORGANIZATION_ID", { status: 500 });
 
   try {
     const update = await request.json();
@@ -14,9 +14,9 @@ Deno.serve(async (request) => {
     const chatId = message?.chat?.id;
     if (!text || !chatId) return new Response("ignored");
 
-    const result = await runReceptionistTurn({
-      clinicId,
-      receptionistId,
+    const result = await runAgentTurn({
+      organizationId,
+      agentId,
       channel: "telegram",
       patientMessage: text,
       metadata: { telegram_chat_id: String(chatId), telegram_user_id: message.from?.id ? String(message.from.id) : undefined, telegram_username: message.from?.username, telegram_message_id: message.message_id },

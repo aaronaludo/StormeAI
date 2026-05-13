@@ -1,6 +1,6 @@
 # AI Provider Router
 
-StormeAI routes chat-only receptionist responses through a provider abstraction.
+StormeAI routes chat-only agent responses through a provider abstraction.
 
 ## Default
 
@@ -15,4 +15,4 @@ StormeAI routes chat-only receptionist responses through a provider abstraction.
 
 ## Safety
 
-The provider router does not define medical behavior. It only sends messages. Safety and no-diagnosis behavior are owned by the receptionist prompt module.
+The provider router does not define medical behavior. It only sends messages. Safety and no-diagnosis behavior are owned by the agent prompt module.

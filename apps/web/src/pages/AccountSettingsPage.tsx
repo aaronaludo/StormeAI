@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Mail, ShieldCheck, UserRound } from "lucide-react";
+import { Building2, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { getWorkspaceSelection, persistWorkspaceSelection } from "../lib/workspaceSelection";
+import { getUserOrganization } from "../lib/organizationWorkspaces";
 
 type AccountProfile = {
   fullName: string;
@@ -12,21 +14,53 @@ type AccountProfile = {
   handoffAlerts: boolean;
 };
 
+type OrganizationProfile = {
+  id: string;
+  name: string;
+  slug: string;
+  organizationType: string;
+  email: string;
+  phone: string;
+  websiteUrl: string;
+  city: string;
+  country: string;
+  timezone: string;
+};
+
 const defaultProfile: AccountProfile = {
   fullName: "",
   phone: "",
-  roleTitle: "Clinic owner",
+  roleTitle: "Organization owner",
   timezone: "Asia/Manila",
   emailNotifications: true,
   appointmentAlerts: true,
   handoffAlerts: true,
 };
 
+const defaultOrganizationProfile: OrganizationProfile = {
+  id: "",
+  name: "",
+  slug: "",
+  organizationType: "",
+  email: "",
+  phone: "",
+  websiteUrl: "",
+  city: "",
+  country: "PH",
+  timezone: "Asia/Manila",
+};
+
+function slugify(value: string) {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "organization";
+}
+
 export function AccountSettingsPage() {
   const [currentEmail, setCurrentEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [profile, setProfile] = useState<AccountProfile>(defaultProfile);
+  const [organization, setOrganization] = useState<OrganizationProfile>(defaultOrganizationProfile);
+  const [organizationStatus, setOrganizationStatus] = useState("Loading organization settings…");
   const [status, setStatus] = useState("Manage your login, profile, and notification preferences.");
 
   useEffect(() => {
@@ -47,7 +81,7 @@ export function AccountSettingsPage() {
       setProfile({
         fullName: String(metadata.full_name || ""),
         phone: String(metadata.phone || ""),
-        roleTitle: String(metadata.role_title || appMetadata.role || "Clinic owner"),
+        roleTitle: String(metadata.role_title || appMetadata.role || "Organization owner"),
         timezone: String(metadata.timezone || "Asia/Manila"),
         emailNotifications: metadata.email_notifications !== false,
         appointmentAlerts: metadata.appointment_alerts !== false,
@@ -57,6 +91,77 @@ export function AccountSettingsPage() {
     void loadUser();
     return () => { mounted = false; };
   }, []);
+
+
+  useEffect(() => {
+    void loadOrganization();
+  }, []);
+
+  async function loadOrganization() {
+    if (!supabase) {
+      setOrganizationStatus("Supabase is not configured.");
+      return;
+    }
+
+    try {
+      const organizations = await getUserOrganization();
+      const selectedId = getWorkspaceSelection().organizationId;
+      const current = organizations.find((item) => item.organizationId === selectedId) || organizations[0];
+      if (!current) {
+        setOrganization(defaultOrganizationProfile);
+        setOrganizationStatus("Create an organization first before editing its settings.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id,name,slug,organization_type,email,phone,website_url,city,country,timezone")
+        .eq("id", current.organizationId)
+        .single();
+
+      if (error) throw error;
+
+      setOrganization({
+        id: data.id,
+        name: data.name || "",
+        slug: data.slug || slugify(data.name || "organization"),
+        organizationType: data.organization_type || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        websiteUrl: data.website_url || "",
+        city: data.city || "",
+        country: data.country || "PH",
+        timezone: data.timezone || "Asia/Manila",
+      });
+      persistWorkspaceSelection({ ...getWorkspaceSelection(), organizationId: data.id });
+      setOrganizationStatus("Update your organization profile here.");
+    } catch (error) {
+      setOrganizationStatus(error instanceof Error ? error.message : "Failed to load organization settings.");
+    }
+  }
+
+  async function saveOrganization(event: FormEvent) {
+    event.preventDefault();
+    if (!supabase) return setOrganizationStatus("Supabase is not configured.");
+    if (!organization.id) return setOrganizationStatus("Create an organization first before saving settings.");
+
+    const nextSlug = slugify(organization.slug || organization.name);
+    const { error } = await supabase.from("organizations").update({
+      name: organization.name.trim(),
+      slug: nextSlug,
+      organization_type: organization.organizationType.trim() || null,
+      email: organization.email.trim() || null,
+      phone: organization.phone.trim() || null,
+      website_url: organization.websiteUrl.trim() || null,
+      city: organization.city.trim() || null,
+      country: organization.country.trim() || "PH",
+      timezone: organization.timezone.trim() || "Asia/Manila",
+    }).eq("id", organization.id);
+
+    if (error) return setOrganizationStatus(error.message);
+    setOrganization((current) => ({ ...current, slug: nextSlug }));
+    setOrganizationStatus("Organization settings saved.");
+  }
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -109,6 +214,23 @@ export function AccountSettingsPage() {
       </header>
 
       <section className="account-settings-grid">
+        <form className="settings-panel wide" onSubmit={saveOrganization}>
+          <SectionTitle icon={Building2} title="Organization" subtitle="Edit the organization connected to this account and its agents." />
+          <p className="settings-status">{organizationStatus}</p>
+          <div className="form-grid">
+            <label>Organization name<input value={organization.name} onChange={(e) => setOrganization({ ...organization, name: e.target.value, slug: slugify(e.target.value) })} placeholder="Storme Dental Organization" /></label>
+            <label>Route slug<input value={organization.slug} onChange={(e) => setOrganization({ ...organization, slug: slugify(e.target.value) })} placeholder="storme-dental" /></label>
+            <label>Organization type<input value={organization.organizationType} onChange={(e) => setOrganization({ ...organization, organizationType: e.target.value })} placeholder="Dental Organization" /></label>
+            <label>Public email<input type="email" value={organization.email} onChange={(e) => setOrganization({ ...organization, email: e.target.value })} placeholder="hello@organization.com" /></label>
+            <label>Phone<input value={organization.phone} onChange={(e) => setOrganization({ ...organization, phone: e.target.value })} placeholder="+63..." /></label>
+            <label>Website<input value={organization.websiteUrl} onChange={(e) => setOrganization({ ...organization, websiteUrl: e.target.value })} placeholder="https://example.com" /></label>
+            <label>City<input value={organization.city} onChange={(e) => setOrganization({ ...organization, city: e.target.value })} placeholder="Makati" /></label>
+            <label>Country<input value={organization.country} onChange={(e) => setOrganization({ ...organization, country: e.target.value })} placeholder="PH" /></label>
+            <label>Organization timezone<input value={organization.timezone} onChange={(e) => setOrganization({ ...organization, timezone: e.target.value })} placeholder="Asia/Manila" /></label>
+          </div>
+          <button className="primary-button" type="submit" disabled={!organization.id}>Save organization</button>
+        </form>
+
         <form className="settings-panel wide" onSubmit={saveProfile}>
           <SectionTitle icon={UserRound} title="Profile" subtitle="Used for workspace identity and staff notifications." />
           <p className="settings-status">{status}</p>

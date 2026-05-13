@@ -19,4 +19,4 @@ ST-007 adds appointment request helpers.
 
 - Persist draft through Supabase client or Edge Function
 - Add provider availability rules
-- Store appointment requests for clinic staff review after creation
+- Store appointment requests for organization staff review after creation

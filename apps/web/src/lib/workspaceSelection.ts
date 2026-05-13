@@ -1,54 +1,54 @@
-const CLINIC_KEY = "stormeai:selectedClinicId";
-const RECEPTIONIST_KEY = "stormeai:selectedReceptionistId";
+const ORGANIZATION_KEY = "stormeai:selectedOrganizationId";
+const AGENT_KEY = "stormeai:selectedAgentId";
 const EVENT_NAME = "stormeai-workspace-changed";
 
 export type WorkspaceSelection = {
-  clinicId?: string;
-  receptionistId?: string;
+  organizationId?: string;
+  agentId?: string;
 };
 
 export function getWorkspaceSelection(): WorkspaceSelection {
   return {
-    clinicId: localStorage.getItem(CLINIC_KEY) || undefined,
-    receptionistId: localStorage.getItem(RECEPTIONIST_KEY) || undefined,
+    organizationId: localStorage.getItem(ORGANIZATION_KEY) || undefined,
+    agentId: localStorage.getItem(AGENT_KEY) || undefined,
   };
 }
 
-export function setSelectedClinic(clinicId?: string) {
+export function setSelectedOrganization(organizationId?: string) {
   const current = getWorkspaceSelection();
-  const nextClinicId = clinicId || undefined;
+  const nextOrganizationId = organizationId || undefined;
 
-  if (current.clinicId === nextClinicId && !current.receptionistId) return;
+  if (current.organizationId === nextOrganizationId && !current.agentId) return;
 
-  if (nextClinicId) localStorage.setItem(CLINIC_KEY, nextClinicId);
-  else localStorage.removeItem(CLINIC_KEY);
-  localStorage.removeItem(RECEPTIONIST_KEY);
+  if (nextOrganizationId) localStorage.setItem(ORGANIZATION_KEY, nextOrganizationId);
+  else localStorage.removeItem(ORGANIZATION_KEY);
+  localStorage.removeItem(AGENT_KEY);
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
 }
 
-export function setSelectedReceptionist(receptionistId?: string) {
+export function setSelectedAgent(agentId?: string) {
   const current = getWorkspaceSelection();
-  const nextReceptionistId = receptionistId || undefined;
+  const nextAgentId = agentId || undefined;
 
-  if (current.receptionistId === nextReceptionistId) return;
+  if (current.agentId === nextAgentId) return;
 
-  if (nextReceptionistId) localStorage.setItem(RECEPTIONIST_KEY, nextReceptionistId);
-  else localStorage.removeItem(RECEPTIONIST_KEY);
+  if (nextAgentId) localStorage.setItem(AGENT_KEY, nextAgentId);
+  else localStorage.removeItem(AGENT_KEY);
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
 }
 
 export function persistWorkspaceSelection(selection: WorkspaceSelection) {
   const current = getWorkspaceSelection();
-  const nextClinicId = selection.clinicId || undefined;
-  const nextReceptionistId = selection.receptionistId || undefined;
+  const nextOrganizationId = selection.organizationId || undefined;
+  const nextAgentId = selection.agentId || undefined;
 
-  if (current.clinicId === nextClinicId && current.receptionistId === nextReceptionistId) return;
+  if (current.organizationId === nextOrganizationId && current.agentId === nextAgentId) return;
 
-  if (nextClinicId) localStorage.setItem(CLINIC_KEY, nextClinicId);
-  else localStorage.removeItem(CLINIC_KEY);
+  if (nextOrganizationId) localStorage.setItem(ORGANIZATION_KEY, nextOrganizationId);
+  else localStorage.removeItem(ORGANIZATION_KEY);
 
-  if (nextReceptionistId) localStorage.setItem(RECEPTIONIST_KEY, nextReceptionistId);
-  else localStorage.removeItem(RECEPTIONIST_KEY);
+  if (nextAgentId) localStorage.setItem(AGENT_KEY, nextAgentId);
+  else localStorage.removeItem(AGENT_KEY);
 
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
 }

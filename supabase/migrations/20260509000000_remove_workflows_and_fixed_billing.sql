@@ -1,4 +1,4 @@
--- StormeAI is now a chat-only receptionist without n8n/React Flow workflow management.
+-- StormeAI is now a chat-only agent without n8n/React Flow workflow management.
 -- Keep billing manual/fixed at ₱10,000/month with unlimited chats.
 
 drop table if exists public.workflow_events cascade;

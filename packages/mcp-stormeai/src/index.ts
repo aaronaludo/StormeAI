@@ -147,7 +147,7 @@ server.tool(
   "n8n_trigger_webhook",
   "Trigger an n8n webhook under N8N_WEBHOOK_BASE_URL.",
   {
-    path: z.string().min(1).describe("Webhook path, for example clinic-intake or /clinic-intake"),
+    path: z.string().min(1).describe("Webhook path, for example organization-intake or /organization-intake"),
     payload: z.record(z.string(), z.unknown()).default({}),
     method: z.enum(["POST", "GET"]).default("POST"),
   },

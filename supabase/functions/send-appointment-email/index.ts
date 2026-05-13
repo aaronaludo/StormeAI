@@ -1,6 +1,6 @@
 type AppointmentEmailPayload = {
   to: string;
-  clinicName: string;
+  organizationName: string;
   patientName: string;
   serviceName: string;
   appointmentTime: string;
@@ -32,17 +32,17 @@ Deno.serve(async (request) => {
 
 function subjectFor(payload: AppointmentEmailPayload) {
   const label = payload.status === "requested" ? "Appointment request received" : `Appointment ${payload.status}`;
-  return `${label} — ${payload.clinicName}`;
+  return `${label} — ${payload.organizationName}`;
 }
 
 function renderEmail(payload: AppointmentEmailPayload) {
   return `
     <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#0f172a">
-      <h1>${payload.clinicName}</h1>
+      <h1>${payload.organizationName}</h1>
       <p>Hi ${payload.patientName},</p>
       <p>Your ${payload.serviceName} appointment is marked as <strong>${payload.status}</strong>.</p>
       <p><strong>Schedule:</strong> ${payload.appointmentTime}</p>
-      <p>If you have questions, reply to the clinic directly.</p>
-      <p style="color:#64748b">StormeAI is a chat-only clinic receptionist and does not provide medical advice.</p>
+      <p>If you have questions, reply to the organization directly.</p>
+      <p style="color:#64748b">StormeAI is a chat-only organization agent and does not provide medical advice.</p>
     </div>`;
 }

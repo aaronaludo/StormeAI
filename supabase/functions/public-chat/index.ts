@@ -1,4 +1,4 @@
-import { runReceptionistTurn } from "../_shared/receptionist.ts";
+import { runAgentTurn } from "../_shared/agent.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,9 +12,9 @@ Deno.serve(async (request) => {
 
   try {
     const body = await request.json();
-    const result = await runReceptionistTurn({
-      clinicId: String(body.clinicId || body.clinic_id || ""),
-      receptionistId: body.receptionistId || body.receptionist_id || undefined,
+    const result = await runAgentTurn({
+      organizationId: String(body.organizationId || body.organization_id || ""),
+      agentId: body.agentId || body.agent_id || undefined,
       sessionId: body.sessionId || body.session_id || undefined,
       channel: "web_widget",
       patientMessage: String(body.message || body.patientMessage || ""),

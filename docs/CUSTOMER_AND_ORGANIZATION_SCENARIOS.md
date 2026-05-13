@@ -1,10 +1,10 @@
-# Customer and Clinic Scenarios
+# Customer and Organization Scenarios
 
-StormeAI is a chat-only AI receptionist for clinics. This document captures real-world scenarios from both sides of the conversation: the patient/customer and the clinic team.
+StormeAI is a chat-only AI agent for organizations. This document captures real-world scenarios from both sides of the conversation: the patient/customer and the organization team.
 
 ## Core value
 
-StormeAI helps clinics respond faster, reduce repetitive admin work, and convert more patient inquiries into booked appointments through chat.
+StormeAI helps organizations respond faster, reduce repetitive admin work, and convert more patient inquiries into booked appointments through chat.
 
 It is not an AI doctor. It does not diagnose, prescribe, or replace medical professionals.
 
@@ -14,13 +14,13 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ### 1. After-hours appointment inquiry
 
-**Scenario:** A patient remembers at 10:30 PM that they need a dental cleaning and checks the clinic website.
+**Scenario:** A patient remembers at 10:30 PM that they need a dental cleaning and checks the organization website.
 
 **Patient asks:**
 > Hi, are you open tomorrow? Can I book dental cleaning?
 
 **StormeAI handles:**
-- checks clinic hours
+- checks organization hours
 - confirms the service is offered
 - asks preferred date/time
 - collects name/contact details
@@ -29,44 +29,44 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 **Customer benefit:** The patient does not need to wait until morning for a reply.
 
-**Clinic benefit:** The clinic captures a booking that may have been lost to another clinic.
+**Organization benefit:** The organization captures a booking that may have been lost to another organization.
 
 ---
 
 ### 2. Common FAQ before booking
 
-**Scenario:** A patient wants to know consultation fee, clinic location, and accepted payment methods before booking.
+**Scenario:** A patient wants to know consultation fee, organization location, and accepted payment methods before booking.
 
 **Patient asks:**
 > How much is consultation and where are you located?
 
 **StormeAI handles:**
-- retrieves fee/location/payment details from the clinic knowledge base
+- retrieves fee/location/payment details from the organization knowledge base
 - answers clearly
 - offers to book an appointment
 
 **Customer benefit:** The patient gets instant, accurate information.
 
-**Clinic benefit:** Staff no longer need to answer the same questions repeatedly.
+**Organization benefit:** Staff no longer need to answer the same questions repeatedly.
 
 ---
 
 ### 3. Service discovery
 
-**Scenario:** A patient is unsure whether the clinic provides a specific service.
+**Scenario:** A patient is unsure whether the organization provides a specific service.
 
 **Patient asks:**
 > Do you do acne scar treatment?
 
 **StormeAI handles:**
-- checks the clinic service list/RAG knowledge base
+- checks the organization service list/RAG knowledge base
 - explains available relevant services in non-diagnostic language
 - recommends booking a consultation for medical advice
 - offers available appointment options
 
-**Customer benefit:** The patient quickly understands whether the clinic is relevant.
+**Customer benefit:** The patient quickly understands whether the organization is relevant.
 
-**Clinic benefit:** More qualified leads move toward consultation.
+**Organization benefit:** More qualified leads move toward consultation.
 
 ---
 
@@ -87,7 +87,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 **Customer benefit:** Rescheduling is convenient and fast.
 
-**Clinic benefit:** Staff spend less time coordinating schedule changes.
+**Organization benefit:** Staff spend less time coordinating schedule changes.
 
 ---
 
@@ -100,14 +100,14 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 **StormeAI handles:**
 - verifies appointment
-- applies clinic cancellation policy
+- applies organization cancellation policy
 - cancels or marks for staff review
 - sends confirmation
 - optionally offers to reschedule
 
 **Customer benefit:** The patient can cancel without calling.
 
-**Clinic benefit:** The clinic gets earlier notice and can refill the slot.
+**Organization benefit:** The organization gets earlier notice and can refill the slot.
 
 ---
 
@@ -119,13 +119,13 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 > Do I need to fast before my blood test?
 
 **StormeAI handles:**
-- answers only from approved clinic instructions
+- answers only from approved organization instructions
 - includes disclaimers where needed
 - offers to confirm with staff if uncertain
 
 **Customer benefit:** The patient arrives prepared.
 
-**Clinic benefit:** Fewer wasted appointments due to missing preparation.
+**Organization benefit:** Fewer wasted appointments due to missing preparation.
 
 ---
 
@@ -139,13 +139,13 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 **StormeAI handles:**
 - does not diagnose
 - does not continue normal booking flow first
-- gives emergency guidance based on clinic policy
+- gives emergency guidance based on organization policy
 - tells the patient to contact emergency services or go to the nearest ER
-- optionally alerts clinic staff
+- optionally alerts organization staff
 
 **Customer benefit:** The patient is not misled into waiting for a routine appointment.
 
-**Clinic benefit:** The clinic reduces safety risk and follows responsible escalation rules.
+**Organization benefit:** The organization reduces safety risk and follows responsible escalation rules.
 
 ---
 
@@ -157,19 +157,19 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 > Pwede po ba walk-in bukas? Magkano consultation?
 
 **StormeAI handles:**
-- responds in Tagalog/Taglish if enabled by the clinic
+- responds in Tagalog/Taglish if enabled by the organization
 - explains walk-in policy and consultation fee
 - offers booking
 
 **Customer benefit:** The conversation feels more natural and accessible.
 
-**Clinic benefit:** The clinic serves more patients without needing every staff member available in every language.
+**Organization benefit:** The organization serves more patients without needing every staff member available in every language.
 
 ---
 
-## Clinic Scenarios
+## Organization Scenarios
 
-### 1. Small dental clinic with overloaded front desk
+### 1. Small dental organization with overloaded front desk
 
 **Problem:** Staff spend too much time replying to repeated questions about hours, cleaning prices, location, and availability.
 
@@ -183,11 +183,11 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 - fewer repetitive chats
 - faster response time
 - more bookings from website traffic
-- receptionist can focus on in-clinic patients
+- agent can focus on in-organization patients
 
 ---
 
-### 2. Dermatology/aesthetic clinic with high inquiry volume
+### 2. Dermatology/aesthetic organization with high inquiry volume
 
 **Problem:** Patients ask about procedures, price ranges, doctor availability, promos, and pre-consultation requirements.
 
@@ -204,7 +204,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ---
 
-### 3. Diagnostic or lab clinic with preparation rules
+### 3. Diagnostic or lab organization with preparation rules
 
 **Problem:** Patients frequently ask about fasting, required documents, schedules, and result release times.
 
@@ -220,7 +220,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ---
 
-### 4. Therapy or wellness clinic managing recurring sessions
+### 4. Therapy or wellness organization managing recurring sessions
 
 **Problem:** Patients need to ask about available slots, reschedule, and understand session types.
 
@@ -236,7 +236,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ---
 
-### 5. Multi-provider clinic
+### 5. Multi-provider organization
 
 **Problem:** Different doctors/providers have different schedules, services, and appointment rules.
 
@@ -253,7 +253,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ---
 
-### 6. Clinic owner wants visibility into demand
+### 6. Organization owner wants visibility into demand
 
 **Problem:** The owner does not know what patients ask most often or which services drive inquiries.
 
@@ -269,7 +269,7 @@ It is not an AI doctor. It does not diagnose, prescribe, or replace medical prof
 
 ---
 
-### 7. Clinic needs automated staff handoff
+### 7. Organization needs automated staff handoff
 
 **Problem:** Some questions need human review, but staff miss messages across channels.
 
@@ -297,14 +297,14 @@ Patient asks about service price
 → StormeAI collects patient details
 → Appointment is created
 → Resend sends confirmation email
-→ n8n notifies clinic staff
+→ n8n notifies organization staff
 ```
 
 ### Flow B: Unknown question with safe fallback
 
 ```txt
-Patient asks a question not found in clinic knowledge
-→ StormeAI says it cannot confirm that from clinic records
+Patient asks a question not found in organization knowledge
+→ StormeAI says it cannot confirm that from organization records
 → StormeAI offers to notify staff
 → n8n creates staff follow-up task
 → Patient receives expected response timeline
@@ -335,7 +335,7 @@ Appointment created
 ```txt
 Patients repeatedly ask same unanswered question
 → StormeAI marks it as knowledge gap
-→ Clinic admin reviews question
+→ Organization admin reviews question
 → Admin adds approved answer to knowledge base
 → Future patients get instant answer
 ```
@@ -353,7 +353,7 @@ Patients repeatedly ask same unanswered question
 - multilingual support if enabled
 - safer routing for urgent cases
 
-## For clinics
+## For organizations
 
 - fewer repetitive messages
 - more booked appointments
@@ -363,10 +363,10 @@ Patients repeatedly ask same unanswered question
 - better staff productivity
 - better visibility into patient demand
 
-## For clinic owners
+## For organization owners
 
 - scalable front desk support without hiring immediately
 - stronger online patient experience
 - measurable conversion from chat to appointment
 - cleaner operations through n8n automation
-- SaaS-ready setup with billing, workflows, and clinic-specific configuration
+- SaaS-ready setup with billing, workflows, and organization-specific configuration

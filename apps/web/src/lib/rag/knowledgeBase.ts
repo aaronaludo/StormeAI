@@ -1,12 +1,12 @@
 export type KnowledgeDocumentInput = {
-  clinicId: string;
+  organizationId: string;
   title: string;
   content: string;
   sourceType?: "faq" | "document" | "service" | "policy" | "website" | "note";
 };
 
 export type KnowledgeChunkInput = {
-  clinicId: string;
+  organizationId: string;
   documentId: string;
   chunkIndex: number;
   content: string;
@@ -38,7 +38,7 @@ export function estimateTokenCount(content: string) {
 
 export function prepareKnowledgeChunks(input: KnowledgeDocumentInput, documentId: string): KnowledgeChunkInput[] {
   return chunkKnowledgeContent(input.content).map((chunk, index) => ({
-    clinicId: input.clinicId,
+    organizationId: input.organizationId,
     documentId,
     chunkIndex: index,
     content: chunk,
@@ -47,6 +47,6 @@ export function prepareKnowledgeChunks(input: KnowledgeDocumentInput, documentId
 }
 
 export function buildRagAnswerInstruction(snippets: { title?: string; content: string }[]) {
-  if (!snippets.length) return "No clinic-approved knowledge was found. Say you cannot confirm and offer human handoff.";
-  return `Use only these clinic-approved snippets when answering:\n${snippets.map((snippet, index) => `[${index + 1}] ${snippet.title ? `${snippet.title}: ` : ""}${snippet.content}`).join("\n")}`;
+  if (!snippets.length) return "No organization-approved knowledge was found. Say you cannot confirm and offer human handoff.";
+  return `Use only these organization-approved snippets when answering:\n${snippets.map((snippet, index) => `[${index + 1}] ${snippet.title ? `${snippet.title}: ` : ""}${snippet.content}`).join("\n")}`;
 }
